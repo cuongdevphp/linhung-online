@@ -10,21 +10,21 @@ const ROBE = i => L.ROBES[i][0];
 
 /* Ngồi trên 5 trong 15 bồ đoàn (chỉ số = hàng * 5 + cột), quay mặt vào bàn thờ. */
 const MEDITATORS = [
-  ['Thích Thiện Tâm', 1, 0], ['Thích Giác Minh', 3, 1], ['Thích Từ Quang', 6, 2],
-  ['Thích Nguyên Hạnh', 11, 1], ['Thích Huệ Đăng', 14, 0]
+  ['Thiện Tâm', 1, 0], ['Giác Minh', 3, 1], ['Từ Quang', 6, 2],
+  ['Nguyên Hạnh', 11, 1], ['Huệ Đăng', 14, 0]
 ];
 
 /* Đứng sau tượng Quán Thế Âm khoảng 20 m, giữa hai đèn đá, quay mặt về phía tượng. */
 const BOWERS = [
-  ['Thích Tâm An', 64.8, 49.8, 2],
-  ['Thích Diệu Pháp', 67.2, 49.8, 3]
+  ['Tâm An', 64.8, 49.8, 2],
+  ['Diệu Pháp', 67.2, 49.8, 3]
 ];
 
 /* Đi qua lại giữa các điểm; dừng nghỉ vài giây ở mỗi đầu. */
 const WALKERS = [
-  ['Thích Đức Hòa', 5, [[-2, 16], [2, 31], [-2, 47], [2, 31]]],        // lối chính giữa hai hàng đèn
-  ['Thích Minh Hạnh', 1, [[-16.5, 16], [-16.5, 48]]],                  // sân phía tây
-  ['Thích Thanh Tịnh', 3, [[16.5, 16], [16.5, 48]]]                    // sân phía đông, cạnh ao sen
+  ['Đức Hòa', 5, [[-2, 16], [2, 31], [-2, 47], [2, 31]]],        // lối chính giữa hai hàng đèn
+  ['Minh Hạnh', 1, [[-16.5, 16], [-16.5, 48]]],                  // sân phía tây
+  ['Thanh Tịnh', 3, [[16.5, 16], [16.5, 48]]]                    // sân phía đông, cạnh ao sen
 ];
 
 const rand = (a, b) => a + Math.random() * (b - a);
