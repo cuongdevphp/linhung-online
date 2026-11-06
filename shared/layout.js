@@ -1,0 +1,72 @@
+/* Hằng số bố cục dùng chung cho server (kiểm tra hành động) và client (dựng thế giới).
+ *
+ * Hệ toạ độ: +x hướng đông (phía biển), +z hướng nam (cổng Tam Quan, nhìn ra biển),
+ * -z hướng lên núi Sơn Trà. Đơn vị: mét.
+ */
+
+export const UP = 5;        // cao độ sân trên
+export const POD = 6.2;     // cao độ nền Đại Hùng Bảo Điện
+
+export const GATE = { x: 0, z: 56 };
+export const HALL = { x: 0, z: -26 };
+export const BURNER = { x: 0, z: -6 };
+export const BELL = { x: 22, z: -6 };
+export const DRUM = { x: -22, z: -6 };
+export const MO_PLAYER = { x: 7, z: -22.5 };
+export const MO_MONK = { x: -7, z: -22.5 };
+export const POND = { x: 26, z: 33, r: 8 };
+export const LAKE_SPOT = { x: 16.2, z: 33 };
+export const BODHI = { x: -27, z: 31 };
+export const PILE = { x: -21, z: 22 };
+export const STATUE = { x: 66, z: 30 };
+
+/* Bồ đoàn trong chánh điện: 3 hàng x 5 chiếc, cao 0,24 m. Ngồi thiền gần đây sẽ tự ngồi lên bồ đoàn. */
+export const CUSHION_H = 0.24;
+export const CUSHIONS = [];
+for (let r = 0; r < 3; r++) for (let c = -2; c <= 2; c++) CUSHIONS.push({ x: c * 2.4, z: HALL.z + 1 - r * 2.2 });
+
+/* Vùng đi được: sân dưới (y=0) và sân trên (y=UP). */
+export const LOWER = { x1: -38.3, x2: 90.2, z1: 0, z2: 55.4 };
+export const UPPER = { x1: -38.3, x2: 38.3, z1: -55, z2: 0 };
+
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+
+export function inBounds(x, z) {
+  return (x >= LOWER.x1 && x <= LOWER.x2 && z >= LOWER.z1 && z <= LOWER.z2) ||
+         (x >= UPPER.x1 && x <= UPPER.x2 && z >= UPPER.z1 && z <= UPPER.z2);
+}
+
+export function clampToBounds(x, z) {
+  if (z < 0) return [clamp(x, UPPER.x1, UPPER.x2), clamp(z, UPPER.z1, 0)];
+  return [clamp(x, LOWER.x1, LOWER.x2), clamp(z, 0, LOWER.z2)];
+}
+
+export function spawnPoint() {
+  return { x: (Math.random() - 0.5) * 5, z: 38 + Math.random() * 2, ry: Math.PI };
+}
+
+/* Điểm tương tác. Người chơi phải đứng trong bán kính r. */
+export const SPOTS = [
+  { type: 'incense', x: BURNER.x, z: BURNER.z, r: 4.6, text: 'thắp nhang' },
+  { type: 'bell', x: BELL.x, z: BELL.z, r: 5, text: 'thỉnh chuông' },
+  { type: 'drum', x: DRUM.x, z: DRUM.z, r: 5, text: 'đánh trống' },
+  { type: 'mo', x: MO_PLAYER.x, z: MO_PLAYER.z, r: 2.6, text: 'gõ mõ' },
+  { type: 'lantern', x: LAKE_SPOT.x, z: LAKE_SPOT.z, r: 4.5, text: 'thả hoa đăng' }
+];
+
+export const ACTIONS = ['bow', 'incense', 'bell', 'drum', 'mo', 'lantern'];
+
+/* Thời gian chờ giữa hai lần cùng một hành động (ms), chống cày công đức. */
+export const ACTION_COOLDOWN_MS = { bow: 1200, incense: 1500, bell: 5000, drum: 2500, mo: 350, lantern: 4000, meditate: 30000 };
+
+/* Màu áo tràng: [mã màu, tên]. Server chỉ nhận các mã trong danh sách này. */
+export const ROBES = [
+  ['#c9772b', 'Nghệ'], ['#7a4a2a', 'Nâu'], ['#6b6f78', 'Lam xám'],
+  ['#d9a227', 'Vàng'], ['#e9e2d0', 'Trắng'], ['#b4495c', 'Hồng sen']
+];
+
+export const WEATHER_KEYS = ['nang', 'binhminh', 'hoanghon', 'may', 'mua', 'giong', 'suong', 'dem'];
+
+export const LANTERN_LIFE_MS = 5 * 60 * 1000;
+export const INCENSE_LIFE_MS = 5 * 60 * 1000;
+export const BELL_PERIOD_S = 120;   // chú tiểu thỉnh chuông mỗi 2 phút

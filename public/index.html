@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Chùa Linh Ứng Online · Bãi Bụt, Sơn Trà</title>
+<meta name="description" content="Dạo chùa Linh Ứng Bãi Bụt (Sơn Trà, Đà Nẵng) cùng bạn bè: thắp nhang, thỉnh chuông, đánh trống, gõ mõ, thả hoa đăng và ngước nhìn Phật Bà Quán Thế Âm hướng ra biển Đông.">
+<meta name="theme-color" content="#0b2a33">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,800;1,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="scene"></canvas>
+<div class="vignette"></div>
+<div id="loading"><div class="lotus-spin">🪷</div><span>Đang mở cổng chùa…</span></div>
+
+<section id="join">
+  <form id="joinForm" class="join-card">
+    <div class="eyebrow">Sơn Trà · Bãi Bụt · Đà Nẵng</div>
+    <h1>Linh Ứng <em>Online</em></h1>
+    <p class="lead">Ngôi đại tự tựa lưng núi Sơn Trà, hướng ra biển Đông. Lên đại bậc thang, thắp nhang trước lư hương lớn, ngước nhìn Phật Bà Quán Thế Âm cao 67 m, thỉnh chuông, đánh trống, thả hoa đăng trên hồ sen — cùng bạn bè, cùng lúc.</p>
+    <label class="field">
+      <span>Pháp danh của bạn</span>
+      <input id="name" maxlength="20" placeholder="VD: Tâm An" autocomplete="off" required>
+    </label>
+    <div class="field">
+      <span>Màu áo tràng</span>
+      <div id="robes" class="robes"></div>
+    </div>
+    <button class="primary" type="submit">Bước vào cổng Tam Quan <span>→</span></button>
+    <div class="keys">
+      <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> di chuyển</span>
+      <span><kbd>Shift</kbd> đi nhanh</span>
+      <span><kbd>Chuột</kbd> xoay / zoom</span>
+      <span><kbd>E</kbd> tương tác</span>
+      <span><kbd>B</kbd> lễ Phật</span>
+      <span><kbd>T</kbd> ngồi thiền</span>
+      <span><kbd>H</kbd> ẩn giao diện chụp ảnh</span>
+    </div>
+    <p class="credit">Bối cảnh lấy cảm hứng từ chùa Linh Ứng – Bãi Bụt, bố cục được cách điệu cho trò chơi.</p>
+  </form>
+</section>
+
+<section id="hud" hidden>
+  <div class="chip place">
+    <div class="place-icon">⛩</div>
+    <div><div id="zone" class="zone">Sân chùa</div><div id="zoneSub" class="zone-sub">Hít thở sâu, bước chậm</div></div>
+  </div>
+  <div class="top-right">
+    <div class="chip stat"><i class="dot"></i><b id="count">1</b>&nbsp;đang ở chùa</div>
+    <div class="chip stat merit">🪷 <b id="merit">0</b>&nbsp;công đức</div>
+    <div class="weather-wrap">
+      <button id="weatherBtn" class="chip stat icon-wide" type="button" title="Cầu thời tiết"><span id="weatherLabel">☀️ Nắng đẹp</span> ▾</button>
+      <div id="weatherMenu" class="chip wmenu" hidden><div class="wtitle">Cầu Phật Bà đổi thời tiết cho cả chùa</div></div>
+    </div>
+    <button id="soundBtn" class="chip icon-btn" type="button" title="Âm thanh">🔊</button>
+  </div>
+  <div id="prompt" class="prompt"></div>
+  <div class="actions">
+    <button type="button" class="act" data-act="bow"><span class="ico">🙏</span><span class="lbl">Lễ Phật</span><kbd>B</kbd></button>
+    <button type="button" class="act" data-act="meditate"><span class="ico">🧘</span><span class="lbl">Ngồi thiền</span><kbd>T</kbd></button>
+    <button type="button" class="act" data-act="incense"><span class="ico">🪔</span><span class="lbl">Thắp nhang</span><kbd>E</kbd></button>
+    <button type="button" class="act" data-act="bell"><span class="ico">🔔</span><span class="lbl">Thỉnh chuông</span><kbd>E</kbd></button>
+    <button type="button" class="act" data-act="drum"><span class="ico">🥁</span><span class="lbl">Đánh trống</span><kbd>E</kbd></button>
+    <button type="button" class="act" data-act="mo"><span class="ico">🪵</span><span class="lbl">Gõ mõ</span><kbd>E</kbd></button>
+    <button type="button" class="act" data-act="lantern"><span class="ico">🏮</span><span class="lbl">Hoa đăng</span><kbd>E</kbd></button>
+  </div>
+  <div class="chat">
+    <div id="messages" class="messages"></div>
+    <form id="chatForm" class="chat-row">
+      <input id="chatInput" maxlength="140" placeholder="Nhấn Enter để gửi lời chúc an lành…" autocomplete="off">
+      <button type="submit" aria-label="Gửi">➤</button>
+    </form>
+  </div>
+  <div id="stick" class="stick"><div class="knob"></div></div>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+</section>
+
+<script src="/socket.io/socket.io.js"></script>
+<script type="importmap">
+{ "imports": {
+  "three": "/vendor/three/build/three.module.js",
+  "three/addons/": "/vendor/three/examples/jsm/"
+} }
+</script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "name": "chua-linh-ung-online",
+  "version": "1.0.0",
+  "description": "Chùa Linh Ứng Online - game 3D nhiều người chơi, bối cảnh chùa Linh Ứng Bãi Bụt, Sơn Trà, Đà Nẵng",
+  "private": true,
+  "type": "module",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "engines": {
+    "node": ">=18 <27"
+  },
+  "dependencies": {
+    "compression": "^1.7.5",
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1",
+    "three": "0.170.0"
+  }
+}

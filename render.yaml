@@ -1,0 +1,19 @@
+# Render Blueprint cho Chùa Linh Ứng Online (Express + Socket.IO, hỗ trợ WebSocket).
+# Dịch vụ tên "linhungtu-online" sẽ có địa chỉ https://linhungtu-online.onrender.com (nếu tên còn trống).
+# Gói free tự "ngủ" sau 15 phút không có người truy cập; lần mở lại mất khoảng 30-60 giây.
+services:
+  - type: web
+    name: linhungtu-online
+    runtime: node
+    plan: free
+    region: singapore            # gần Việt Nam nhất, độ trễ thấp cho game thời gian thực
+    # Không đặt "branch": Render dùng nhánh được chọn khi tạo Blueprint (repo này dùng nhánh "production").
+    autoDeploy: true
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: MAX_PLAYERS         # gói free chỉ có 0,1 CPU: giữ số người chơi đồng thời vừa phải
+        value: "60"
