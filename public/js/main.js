@@ -224,7 +224,7 @@ function bowMessage() {
 }
 const anim = { bell: 0, drum: 0, mo: 0 };
 socket.on('action', d => {
-  setMerit(d.merit);
+  setMerit(d.merit, !d.npc);
   const o = players.get(d.id);
   if (d.type === 'bow' && o) o.bow = 1;
   if (d.type === 'bell') { anim.bell = 1; sfx.bell(volAt(BELL.x, BELL.z, 90)); }

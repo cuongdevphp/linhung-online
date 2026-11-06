@@ -6,6 +6,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as L from '../shared/layout.js';
+import { startNpcs } from './npc.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.env.PORT) || 5000;
@@ -47,6 +48,8 @@ try {
   if (Number.isFinite(saved.merit) && saved.merit >= 0) merit = Math.floor(saved.merit);
   if (L.WEATHER_KEYS.includes(saved.weather)) weather.key = saved.weather;
 } catch { /* chưa có file trạng thái */ }
+
+const NPC_COUNT = startNpcs(players, io, () => merit);   // Phật tử ảo: thiền, lễ Phật, đi dạo
 
 let dirty = false;
 function saveState() {
@@ -129,7 +132,7 @@ io.on('connection', socket => {
 
   socket.on('join', d => {
     if (players.has(socket.id)) return;
-    if (players.size >= MAX_PLAYERS) return socket.emit('full');
+    if (players.size - NPC_COUNT >= MAX_PLAYERS) return socket.emit('full');
     const name = clean(d && d.name, 20);
     if (!name) return socket.emit('notice', 'Hãy nhập pháp danh của bạn');
     const color = L.ROBES.some(r => r[0] === (d && d.color)) ? d.color : L.ROBES[0][0];
