@@ -486,6 +486,9 @@ function update(dt, t) {
   if (me) {
     const p = me.root.position, edge = p.z > 0 ? Math.min(57 - p.z, 92 - p.x) : 99;
     sfx.setSea(clamp(1 - edge / 45, 0.1, 1) * (1 - env.mist * 0.2));
+    // nhạc chùa: nghe rõ trong chánh điện, ra ngoài thì nhỏ dần theo khoảng cách tới điện
+    const hd = Math.hypot(Math.max(0, Math.abs(p.x) - 18), p.z < -36 ? -36 - p.z : Math.max(0, p.z + 16));
+    sfx.setTemple(hd === 0 ? 1 : 0.85 * Math.exp(-hd / 26));
   }
 
   // chuông / trống / mõ
