@@ -11,6 +11,7 @@ import { createLife } from './life.js';
 import { makeHuman } from './human.js';
 import { createWeather, PRESETS } from './weather.js';
 import { sfx } from './audio.js';
+import { templeMusic } from './temple-music.js';
 import { lerpAngle, makeLabel, clamp } from './util.js';
 import { M } from './materials.js';
 import { STATUE_MATS } from './statues.js';
@@ -169,7 +170,7 @@ $('#joinForm').addEventListener('submit', e => {
   const name = $('#name').value.trim(); if (!name) return;
   myName = name;
   try { localStorage.setItem('linhung-name', name); } catch { /* bỏ qua */ }
-  sfx.init(); sfx.chime(0.6);
+  sfx.init(); templeMusic.init(); sfx.chime(0.6);
   joining = true;
   socket.emit('join', { name, color: robe });
 });
@@ -488,7 +489,7 @@ function update(dt, t) {
     sfx.setSea(clamp(1 - edge / 45, 0.1, 1) * (1 - env.mist * 0.2));
     // nhạc chùa: nghe rõ trong chánh điện, ra ngoài thì nhỏ dần theo khoảng cách tới điện
     const hd = Math.hypot(Math.max(0, Math.abs(p.x) - 18), p.z < -36 ? -36 - p.z : Math.max(0, p.z + 16));
-    sfx.setTemple(hd === 0 ? 1 : 0.85 * Math.exp(-hd / 26));
+    templeMusic.setLevel(hd === 0 ? 1 : 0.85 * Math.exp(-hd / 26), dt);
   }
 
   // chuông / trống / mõ
