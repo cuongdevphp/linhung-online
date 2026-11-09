@@ -314,7 +314,7 @@ export function createLife(scene, W, sfx) {
   /* ---------------- hạt môi trường: đom đóm, hoa sứ rơi, khói nhang ---------------- */
   const FF = 200, ffGeo = new THREE.BufferGeometry(), ffPos = new Float32Array(FF * 3), ffSeed = [];
   for (let i = 0; i < FF; i++) {
-    const x = -36 + R() * 120, z = R() < 0.8 ? 6 + R() * 48 : -50 + R() * 46;
+    const x = -36 + R() * 120, z = R() < 0.75 ? 6 + R() * 48 : -68 + R() * 64;
     ffPos.set([x, heightAt(x, z) + 0.6 + R() * 6, z], i * 3); ffSeed.push(R() * 100);
   }
   ffGeo.setAttribute('position', new THREE.BufferAttribute(ffPos, 3));

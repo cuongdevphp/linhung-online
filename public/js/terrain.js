@@ -10,7 +10,7 @@ const SEA_FLOOR = -32;
 
 /* Hai hình chữ nhật mà địa hình được ép phẳng bên dưới sàn chùa. */
 const FP_LOWER = { x1: -41.5, x2: 93.5, z1: -0.5, z2: 60, base: -0.45 };
-const FP_UPPER = { x1: -40.5, x2: 40.5, z1: -58.5, z2: 0.5, base: UP - 0.45 };
+const FP_UPPER = { x1: -40.5, x2: 40.5, z1: -76.5, z2: 0.5, base: UP - 0.45 };
 
 function rectSDF(x, z, r) {
   const cx = (r.x1 + r.x2) / 2, cz = (r.z1 + r.z2) / 2, hx = (r.x2 - r.x1) / 2, hz = (r.z2 - r.z1) / 2;

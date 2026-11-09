@@ -12,6 +12,7 @@ import { makeHuman } from './human.js';
 import { createWeather, PRESETS } from './weather.js';
 import { sfx } from './audio.js';
 import { templeMusic } from './temple-music.js';
+import { attachWork, updateWork } from './work.js';
 import { lerpAngle, makeLabel, clamp } from './util.js';
 import { M } from './materials.js';
 import { STATUE_MATS } from './statues.js';
@@ -77,11 +78,12 @@ let selfId = null, me = null;
 function createPlayer(p) {
   if (players.has(p.id)) return players.get(p.id);
   let hash = 0; for (const ch of p.name) hash = (hash * 31 + ch.charCodeAt(0)) | 0;
-  const h = makeHuman({ robe: p.color, hair: hash & 1 ? 'bun' : 'short', skinTone: Math.abs(hash) % 4 });
+  const h = makeHuman({ robe: p.color, hair: hash & 1 ? 'bun' : 'short', skinTone: Math.abs(hash) % 4, shaved: !!p.monk });
   h.root.position.set(p.x, heightAt(p.x, p.z), p.z); h.root.rotation.y = p.ry;
   const label = makeLabel(p.name); label.position.y = h.height + 0.1; h.root.add(label);
   scene.add(h.root);
   const o = Object.assign(h, { id: p.id, name: p.name, color: p.color, label, target: new THREE.Vector3(p.x, 0, p.z), targetRy: p.ry, moving: !!p.moving, sitting: !!p.sitting, walk: 0, bow: 0, bubble: null, bubbleT: 0 });
+  if (p.act) attachWork(o, p.act);                       // Phật tử làm công quả trong nhà bếp
   players.set(p.id, o);
   return o;
 }
@@ -351,8 +353,11 @@ const ZONES = [
   { test: (x, z) => inHallAt(x, z), name: 'Đại Hùng Bảo Điện', sub: 'Thích Ca · Quán Thế Âm · Địa Tạng' },
   { test: (x, z) => Math.hypot(x - BELL.x, z - BELL.z) < 6, name: 'Gác chuông', sub: 'Một tiếng chuông, vạn điều an' },
   { test: (x, z) => Math.hypot(x - DRUM.x, z - DRUM.z) < 6, name: 'Gác trống', sub: 'Tiếng trống thức tỉnh tâm mê' },
+  { test: (x, z) => x > 24.5 && z < -65.3, name: 'Trai đường', sub: 'Ăn cơm trong chánh niệm, nhớ ơn người dâng cúng' },
+  { test: (x, z) => Math.abs(x - 26.1) < 5.5 && Math.abs(z + 50) < 13, name: 'Nhà Trù', sub: 'Công quả là tu, một nồi cơm cũng là hành đạo' },
   { test: (x, z) => z <= 0 && Math.abs(x) > 30, name: 'Hành lang', sub: 'Bước chậm, nghe gió qua mái ngói' },
-  { test: (x, z) => z < -46, name: 'Nhà Tổ', sub: 'Chốn tĩnh tu của chư Tăng' },
+  { test: (x, z) => z < -64, name: 'Nhà Tổ', sub: 'Chốn tĩnh tu của chư Tăng' },
+  { test: (x, z) => z < -38, name: 'Sân sau', sub: 'Lùi lại sau chánh điện, nghe gió từ núi Sơn Trà' },
   { test: (x, z) => z <= 0, name: 'Sân lư hương', sub: 'Chư Tăng đang kinh hành' },
   { test: (x, z) => z < 10.5 && Math.abs(x) < 7.5, name: 'Đại bậc thang', sub: 'Mỗi bậc một lần buông bỏ' },
   { test: (x, z) => Math.hypot(x - STATUE.x, z - STATUE.z) < 31, name: 'Đài Quán Thế Âm', sub: 'Phật Bà nhìn ra biển Đông, che chở ngư dân' },
@@ -364,6 +369,7 @@ const ZONES = [
   { test: () => true, name: 'Sân chùa', sub: 'Hít thở sâu, bước chậm' }
 ];
 let zoneName = '', lastSend = 0, wasMoving = false, ambientT = 3;
+const WALK_SPEED = 3.2;   // m/s khi đi bộ; giữ Shift thì chạy nhanh gấp 1,75 lần
 const clock = new THREE.Clock();
 const tmp = new THREE.Vector3(), focus = new THREE.Vector3(30, 0, 20), camTarget = new THREE.Vector3();
 const moRest = new THREE.Vector3(1.1, 0.8, 0.9);
@@ -384,8 +390,11 @@ function update(dt, t) {
     if (moving) {
       const fx = -Math.sin(camYaw), fz = -Math.cos(camYaw), rx = Math.cos(camYaw), rz = -Math.sin(camYaw);
       let mx = fx * f + rx * r, mz = fz * f + rz * r; const l = Math.hypot(mx, mz) || 1; mx /= l; mz /= l;
-      const speed = (keys.shift ? 9 : 5.4) * mag * dt;
+      let speed = (keys.shift ? WALK_SPEED * 1.75 : WALK_SPEED) * mag * dt;
       const h0 = heightAt(p.x, p.z);
+      // lên dốc/bậc thang thì chậm lại theo độ dốc (đại bậc thang dốc ~0,48 -> còn khoảng một nửa)
+      const rise = (heightAt(p.x + mx * speed, p.z + mz * speed) - h0) / Math.max(speed, 1e-6);
+      if (rise > 0.02) speed *= clamp(1 - rise * 1.1, 0.4, 1);
       if (!blocked(p.x + mx * speed, p.z, h0)) p.x += mx * speed;
       const h1 = heightAt(p.x, p.z);
       if (!blocked(p.x, p.z + mz * speed, h1)) p.z += mz * speed;
@@ -449,7 +458,10 @@ function update(dt, t) {
     if (o.sitting !== o.seatedPose) o.setSeated(o.sitting);
     const p = o.root.position;
     p.y += (heightAt(p.x, p.z) + (o.sitting ? seatLiftAt(p.x, p.z) : 0) - p.y) * Math.min(1, dt * 14);
-    o.walk = o.moving ? o.walk + dt * (keys.shift && o === me ? 13 : 9) : 0;
+    // nhịp chân theo tốc độ thực tế (m/s), nên đi chậm hay leo bậc thang thì chân bước chậm theo, không trượt
+    const vNow = Math.hypot(p.x - (o.px ?? p.x), p.z - (o.pz ?? p.z)) / Math.max(dt, 1e-3);
+    o.px = p.x; o.pz = p.z; o.vel = (o.vel ?? vNow) + (vNow - (o.vel ?? vNow)) * Math.min(1, dt * 8);
+    o.walk = o.moving ? o.walk + dt * clamp(o.vel * 1.7, 3.5, 11) : 0;
     o.body.position.y = o.moving ? Math.abs(Math.sin(o.walk)) * 0.025 : 0;
     if (o.sitting) o.dhyana();
     else if (o.moving) { o.step(o.walk); o.walkArms(o.walk); }
@@ -460,6 +472,7 @@ function update(dt, t) {
       o.upper.rotation.x = lean + Math.sin((1 - o.bow) * Math.PI) * 0.95;
       o.neck.rotation.x = Math.sin((1 - o.bow) * Math.PI) * 0.25;
     } else { o.upper.rotation.x = lean; o.neck.rotation.x = o.sitting ? 0.1 : 0; }
+    if (o.work) updateWork(o, t);                            // ghi đè tay, lưng, mắt bằng động tác công quả
     o.idle(dt, t);
     if (o.bubble) {
       o.bubbleT -= dt; o.bubble.material.opacity = Math.min(1, o.bubbleT);
@@ -476,6 +489,7 @@ function update(dt, t) {
   M.LANTERN.emissiveIntensity = 0.5 + night * 2.8;
   W.lights.forEach(l => { l.intensity = l.userData.base * Math.max(0, night - 0.1) * 1.3 + (l.userData.always || 0) * (0.4 + night * 0.6); });
   M.BGOLD.emissiveIntensity = 0.45 + night * 1.2 + Math.sin(t * 1.4) * 0.12;
+  STATUE_MATS.HOOD.emissiveIntensity = M.BGOLD.emissiveIntensity;
   M.HALO.emissiveIntensity = 1.2 + night * 1.3 + Math.sin(t * 1.4 + 1) * 0.25;
   M.PEARL.emissiveIntensity = 1.4 + night * 1.2;
   M.MARBLE.emissiveIntensity = night * 0.3;
@@ -500,6 +514,8 @@ function update(dt, t) {
   }
   if (anim.drum > 0) { anim.drum = Math.max(0, anim.drum - dt * 3); W.anim.drum.scale.setScalar(1 + anim.drum * 0.05); }
   if (anim.mo > 0) { anim.mo = Math.max(0, anim.mo - dt * 4); W.anim.mo.scale.set(1.1 + anim.mo * 0.12, 0.8 - anim.mo * 0.1, 0.9); } else W.anim.mo.scale.copy(moRest);
+  W.anim.kitchen?.update(t, dt);
+  W.anim.dining?.update(t, dt);
   W.anim.flames?.forEach((f, i) => f.scale.set(1 + Math.sin(t * 17 + i) * 0.1, 1.8 + Math.sin(t * 13 + i) * 0.3, 1));
 
   // âm thanh môi trường

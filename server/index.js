@@ -85,7 +85,7 @@ function bucket(rate, burst) {
   };
 }
 
-const pub = p => ({ id: p.id, name: p.name, color: p.color, x: p.x, z: p.z, ry: p.ry, moving: p.moving, sitting: p.sitting });
+const pub = p => ({ id: p.id, name: p.name, color: p.color, x: p.x, z: p.z, ry: p.ry, moving: p.moving, sitting: p.sitting, act: p.act, monk: p.monk });
 
 function prune() {
   const now = Date.now();

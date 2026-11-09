@@ -68,7 +68,9 @@ export function buildHall(scene, W) {
   box(24, 1.2, 4.8, M.RED, 0, POD + 0.6, ALT, g); box(24.4, 0.12, 5.1, M.GOLD, 0, POD + 1.25, ALT, g, false);
   box(20, 1.2, 3.4, M.RED, 0, POD + 1.8, ALT - 0.7, g); box(20.4, 0.12, 3.7, M.GOLD, 0, POD + 2.45, ALT - 0.7, g, false);
   box(26, 8, 0.4, M.BACKDROP, 0, POD + 4, -9.6, g);
-  const buddhas = [['quanam', -7, 2.1, 'QUÁN THẾ ÂM BỒ TÁT'], ['sakya', 0, 2.5, 'THÍCH CA MÂU NI PHẬT'], ['diatang', 7, 2.1, 'ĐỊA TẠNG BỒ TÁT']];
+  /* Tỉ lệ tượng: đỉnh đầu (kể cả nhục kế) phải thấp hơn trần chánh điện (POD + H + 0.6 - 0.18 ≈ 14,6 m).
+   * Bản cũ cao 2,1 - 2,5 nên trần cắt ngang đầu tượng ở ngang mắt, nhìn từ dưới lên thấy tượng "cụt đầu". */
+  const buddhas = [['quanam', -7, 1.5, 'QUÁN THẾ ÂM BỒ TÁT'], ['sakya', 0, 1.75, 'THÍCH CA MÂU NI PHẬT'], ['diatang', 7, 1.5, 'ĐỊA TẠNG BỒ TÁT']];
   for (const [kind, x, s, label] of buddhas) {
     const b = makeBuddha(kind, M.HALO); b.scale.setScalar(s); b.position.set(x, POD + 2.5, ALT - 0.9); g.add(b);
     textPlate(label, 3.7, 0.62, x, POD + 0.62, ALT + 2.43, g, 0, { size: 0.5 });

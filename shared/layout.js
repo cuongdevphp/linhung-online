@@ -19,6 +19,16 @@ export const LAKE_SPOT = { x: 16.2, z: 33 };
 export const BODHI = { x: -27, z: 31 };
 export const PILE = { x: -21, z: 22 };
 export const STATUE = { x: 66, z: 30 };
+/* Nhà bếp (nhà trù) ở sân sau, tựa vào hành lang hữu vu. Toạ độ cục bộ của nhà: +x đông, +z là phía mặt hở,
+ * -z là tường sau. Nhà xoay -90° quanh trục đứng: tường sau quay về phía đông (sát hành lang),
+ * mặt hở nhìn ra giữa sân sau, trục dài chạy bắc-nam. */
+export const KITCHEN = { x: 26.1, z: -50, rot: -Math.PI / 2 };
+/* Nhà ăn (trai đường) sát tường sau của sân sau, góc đông bắc, kế đầu bắc nhà bếp. Không xoay: mặt hở nhìn về phía nam (+z). */
+export const DINING = { x: 31.9, z: -69.6 };
+export function kitchenToWorld(lx, lz) {
+  const c = Math.cos(KITCHEN.rot), s = Math.sin(KITCHEN.rot);
+  return [KITCHEN.x + lx * c + lz * s, KITCHEN.z - lx * s + lz * c];
+}
 
 /* Bồ đoàn trong chánh điện: 3 hàng x 5 chiếc, cao 0,24 m. Ngồi thiền gần đây sẽ tự ngồi lên bồ đoàn. */
 export const CUSHION_H = 0.24;
@@ -27,7 +37,7 @@ for (let r = 0; r < 3; r++) for (let c = -2; c <= 2; c++) CUSHIONS.push({ x: c *
 
 /* Vùng đi được: sân dưới (y=0) và sân trên (y=UP). */
 export const LOWER = { x1: -38.3, x2: 90.2, z1: 0, z2: 55.4 };
-export const UPPER = { x1: -38.3, x2: 38.3, z1: -55, z2: 0 };
+export const UPPER = { x1: -38.3, x2: 38.3, z1: -73, z2: 0 };   // sân sau đã nới thêm 18 m về phía núi
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 

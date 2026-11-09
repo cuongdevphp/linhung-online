@@ -7,6 +7,8 @@ import { blockBox, blockCircle, STAIR_RUN } from './collision.js';
 import { buildQuanAm } from './statues.js';
 import { makeArhat } from './arhat.js';
 import { buildHall } from './hall.js';
+import { buildKitchen } from './kitchen.js';
+import { buildDining } from './dining.js';
 
 const flatRot = m => { m.rotation.x = -Math.PI / 2; return m; };
 
@@ -173,10 +175,11 @@ export function buildWorld(scene) {
   }
 
   /* ================= SÂN TRÊN ================= */
-  box(80, UP, 56, M.STONE, 0, UP / 2, -28);
-  flatRot(mesh(new THREE.PlaneGeometry(79.4, 55.6), M.PAVE, 0, UP + 0.01, -27.8, stat, false));
-  wall(0, -56.2, 80, 0.8, 3, UP);
-  for (const sx of [-1, 1]) wall(sx * 39.9, -28, 0.8, 56, 3, UP);
+  const ZB = 74;      // sân trên sâu 74 m (sân sau nới thêm 18 m so với bản đầu)
+  box(80, UP, ZB, M.STONE, 0, UP / 2, -ZB / 2);
+  flatRot(mesh(new THREE.PlaneGeometry(79.4, ZB - 0.4), M.PAVE, 0, UP + 0.01, -(ZB - 0.4) / 2, stat, false));
+  wall(0, -ZB - 0.2, 80, 0.8, 3, UP);
+  for (const sx of [-1, 1]) wall(sx * 39.9, -ZB / 2, 0.8, ZB, 3, UP);
 
   // đại bậc thang 21 bậc, lan can rồng, thềm rồng ở giữa
   {
@@ -257,29 +260,33 @@ export function buildWorld(scene) {
 
   // tả vu - hữu vu: hành lang hai bên sân trên
   for (const sx of [-1, 1]) {
-    const g = new THREE.Group(); g.position.set(sx * 34.5, UP, -29); stat.add(g);
-    box(7.5, 0.6, 46, M.STONE, 0, 0.3, 0, g);
-    box(0.5, 5, 45, M.WALL, sx * 3.4, 3.1, 0, g);
-    box(0.3, 4.4, 44.5, M.WALL, -sx * 1.05, 2.9, 0, g);
-    for (let z = -19.5; z <= 19.5; z += 4.5) {
+    const ZC = -34, HL = 28;                         // hành lang dài 56 m, từ z = -62 đến z = -6 (chừa góc đông bắc cho nhà ăn)
+    const g = new THREE.Group(); g.position.set(sx * 34.5, UP, ZC); stat.add(g);
+    box(7.5, 0.6, 2 * HL, M.STONE, 0, 0.3, 0, g);
+    box(0.5, 5, 2 * HL - 1, M.WALL, sx * 3.4, 3.1, 0, g);
+    box(0.3, 4.4, 2 * HL - 1.5, M.WALL, -sx * 1.05, 2.9, 0, g);
+    for (let i = 0; i < 11; i++) {
+      const z = (i - 5) * 4.5;
       const o = mesh(new THREE.PlaneGeometry(4, 3.4), M.LATTICE, -sx * 1.22, 2.6, z, g, false); o.rotation.y = -sx * Math.PI / 2;
     }
-    for (let z = -21; z <= 21; z += 4.2) { column(g, -sx * 3.2, 0.6, z, 4.4, 0.26); blockCircle(sx * 34.5 - sx * 3.2, -29 + z, 0.3); }
-    roofZ(g, { len: 49, wid: 10, h: 2.6, y: 5.4, s: 0.7, ridge: 44 });
-    for (let z = -19; z <= 19; z += 8.4) W.lanternAt(g, -sx * 3.2, 4.9, z + 2.1, 0.6);
-    blockBox(sx > 0 ? 33.3 : -38.6, sx > 0 ? 38.6 : -33.3, -52, -6);
+    for (let i = 0; i < 13; i++) { const z = (i - 6) * 4.2; column(g, -sx * 3.2, 0.6, z, 4.4, 0.26); blockCircle(sx * 34.5 - sx * 3.2, ZC + z, 0.3); }
+    roofZ(g, { len: 2 * HL + 3, wid: 10, h: 2.6, y: 5.4, s: 0.7, ridge: 2 * HL - 2 });
+    for (let i = 0; i < 7; i++) W.lanternAt(g, -sx * 3.2, 4.9, (i - 3) * 8.4 + 2.1, 0.6);
+    blockBox(sx > 0 ? 33.3 : -38.6, sx > 0 ? 38.6 : -33.3, ZC - HL, ZC + HL);
   }
 
   buildHall(stat, W);
+  buildKitchen(stat, W);
+  buildDining(stat, W);
 
   // dãy nhà Tổ - giảng đường phía sau chánh điện
   {
-    const g = new THREE.Group(); g.position.set(0, UP, -51.5); stat.add(g);
+    const g = new THREE.Group(); g.position.set(0, UP, -69.5); stat.add(g);
     box(46, 0.5, 6.6, M.STONE, 0, 0.25, 0, g);
     box(44, 4.2, 5.4, M.WALL, 0, 2.6, 0, g);
     for (const x of [-15, -5, 5, 15]) mesh(new THREE.PlaneGeometry(3.2, 2.6), M.LATTICE, x, 2.6, 2.72, g, false);
     roof(g, { w: 48, d: 8.6, h: 2.2, y: 4.7, s: 0.7, ridge: 40 });
-    blockBox(-23, 23, -55, -48.2);
+    blockBox(-23, 23, -73, -66.2);
   }
 
   /* ================= KẾT THÚC ================= */

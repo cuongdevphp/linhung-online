@@ -9,7 +9,7 @@ export function heightAt(x, z) {
     if (Math.abs(x) < 8 && z >= -14 && z < -10.5) return UP + (POD - UP) * (-10.5 - z) / 3.5;
     if (Math.abs(x - BELL.x) < 4 && Math.abs(z - BELL.z) < 4) return UP + 0.5;
     if (Math.abs(x - DRUM.x) < 4 && Math.abs(z - DRUM.z) < 4) return UP + 0.5;
-    if (Math.abs(x) > 30.75 && Math.abs(x) < 38.4 && z > -52 && z < -6) return UP + 0.6;   // nền hành lang tả vu, hữu vu
+    if (Math.abs(x) > 30.75 && Math.abs(x) < 38.4 && z > -62 && z < -6) return UP + 0.6;   // nền hành lang tả vu, hữu vu
     return UP;
   }
   if (z < STAIR_RUN && Math.abs(x) < 7) return UP * (STAIR_RUN - z) / STAIR_RUN;

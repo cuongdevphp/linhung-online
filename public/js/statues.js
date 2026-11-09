@@ -2,11 +2,14 @@ import * as THREE from 'three';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { mesh, cyl, span, mat } from './util.js';
 import { M } from './materials.js';
+import { makeBuddhaHead } from './buddhaface.js';
 
 /* Tượng: Phật Bà Quán Thế Âm trên đài sen, tượng thờ trong chánh điện, 18 vị La Hán. */
 
 const LOTUS = mat('lotusPink', 0xf8e7ea, { roughness: 0.5, emissive: 0xfff0f0, emissiveIntensity: 0 });
-export const STATUE_MATS = { MARBLE: M.MARBLE, LOTUS };
+/* HOOD: vàng hai mặt cho khăn trùm của Quán Âm (nhìn từ phía trước thấy mặt trong của nửa khăn phía sau). main.js đồng bộ độ sáng với M.BGOLD. */
+const HOOD = M.BGOLD.clone(); HOOD.side = THREE.DoubleSide;
+export const STATUE_MATS = { MARBLE: M.MARBLE, LOTUS, HOOD };
 
 /* Lathe có nếp áo (gợn theo góc và theo chiều cao), đường nối đặt ở phía sau, pháp tuyến mượt. */
 export function foldedLathe(profile, { seg = 56, fold = 0.025, phiStart = 0, phiLength = Math.PI * 2, squash = 1 } = {}) {
@@ -64,17 +67,9 @@ export function buildQuanAm() {
   const veil = foldedLathe([[6.5, 43.5], [6.9, 48], [6.2, 52.5], [5.2, 56.5], [4.7, 60], [4.5, 63], [3.5, 65.8], [1.6, 67], [0.01, 67.5]], { seg: 64, fold: 0.02, phiStart: Math.PI + 0.6, phiLength: Math.PI * 2 - 1.2, squash: 0.92 });
   add(veil, M.MARBLE, 0, 0, 0, fig);
 
-  // đầu và nét mặt
-  const head = add(new THREE.SphereGeometry(3.6, 32, 24), M.MARBLE, 0, 60.6, 0.2, fig); head.scale.set(0.9, 1.16, 1);
-  const feat = (geo, x, y, z, rot = [0, 0, 0], sc = [1, 1, 1]) => { const m = add(geo, M.MARBLE, x, y, z + 0.2, fig, false); m.rotation.set(...rot); m.scale.set(...sc); return m; };
-  for (const s of [-1, 1]) {
-    feat(new THREE.TorusGeometry(0.62, 0.09, 6, 16, Math.PI), s * 1.3, 61.2, 3.42, [0, 0, Math.PI]);       // mắt khép
-    feat(new THREE.CapsuleGeometry(0.1, 1.2, 3, 6), s * 1.35, 62.4, 3.4, [0, 0, Math.PI / 2 + s * 0.12]);   // mày
-    feat(new THREE.SphereGeometry(0.42, 10, 8), s * 3.2, 60.4, 0.2, [0, 0, 0], [0.4, 1.2, 0.8]);           // tai
-  }
-  feat(new THREE.SphereGeometry(0.5, 12, 10), 0, 60.2, 3.8, [0.2, 0, 0], [0.7, 1.3, 0.9]);               // mũi
-  feat(new THREE.SphereGeometry(0.62, 12, 8), 0, 58.9, 3.5, [0, 0, 0], [1.1, 0.3, 0.55]);                // môi
-  add(new THREE.SphereGeometry(0.22, 8, 8), M.GOLD, 0, 63.1, 3.35, fig, false);                          // bạch hào giữa trán
+  // đầu và nét mặt: tượng đá trắng, mắt khép nhìn xuống, mày cong, môi mỉm, tai dài, bạch hào giữa trán (xem buddhaface.js)
+  const face = makeBuddhaHead({ skin: M.MARBLE, line: mat('faceLineStone', 0x6b665f, { roughness: 0.7 }), urna: M.GOLD, detail: 'hi' });
+  face.scale.setScalar(3.6); face.position.set(0, 60.4, 0.2); fig.add(face);
   // Đức Phật A Di Đà nhỏ trên đỉnh đầu
   const mini = new THREE.Group(); mini.position.set(0, 66.4, 0.3); fig.add(mini);
   add(new THREE.SphereGeometry(0.9, 12, 8), M.GOLD, 0, 0.6, 0, mini, false).scale.set(1.3, 0.8, 0.9);
@@ -131,21 +126,20 @@ export function makeBuddha(kind, haloMat) {
   }
   add(new THREE.SphereGeometry(0.2, 12, 10), G, 0, 0.92, 0.55).scale.set(1.4, 0.6, 1);
   add(new THREE.CylinderGeometry(0.13, 0.15, 0.2, 12), G, 0, 2.08, 0);
-  const head = add(new THREE.SphereGeometry(0.36, 24, 18), G, 0, 2.38, 0); head.scale.set(1, 1.12, 1);
-  for (const sx of [-1, 1]) { const ear = add(new THREE.CapsuleGeometry(0.05, 0.28, 4, 8), G, sx * 0.36, 2.3, 0); ear.rotation.z = sx * 0.1; }
-  const face = (x, y, z, sc, geo = new THREE.SphereGeometry(0.05, 8, 6)) => { const m = add(geo, M.DARK, x, y, z, false); m.scale.set(...sc); };
-  face(-0.13, 2.43, 0.33, [1.6, 0.3, 0.6]); face(0.13, 2.43, 0.33, [1.6, 0.3, 0.6]);   // mắt khép
-  face(0, 2.25, 0.35, [1.6, 0.35, 0.6]);                                                 // miệng mỉm
+  // đầu: mặt Phật điêu khắc chi tiết. Thích Ca có ốc phát xanh thẫm + nhục kế + ngọc đỉnh; Địa Tạng có mũ tóc; Quán Âm có khăn trùm.
+  const HAIR = mat('buddhaHair', 0x1c2a58, { metalness: 0.2, roughness: 0.45 });
+  const head = makeBuddhaHead({
+    skin: G, line: mat('faceLineGold', 0x2a1608, { roughness: 0.6 }), urna: M.PEARL, detail: 'mid',
+    hair: kind === 'quanam' ? null : HAIR, curls: kind === 'sakya', cap: kind === 'diatang', jewel: kind === 'sakya' ? M.PEARL : null
+  });
+  head.scale.setScalar(0.36); head.position.set(0, 2.38, 0); b.add(head);
 
-  if (kind === 'sakya') {
-    add(new THREE.SphereGeometry(0.2, 16, 12), G, 0, 2.78, -0.02);
-    add(new THREE.ConeGeometry(0.08, 0.2, 10), G, 0, 3.0, -0.02);
-  } else if (kind === 'quanam') {
-    const hood = foldedLathe([[0.48, 1.9], [0.52, 2.3], [0.47, 2.7], [0.3, 2.95], [0.01, 3.05]], { seg: 24, fold: 0.01, phiStart: Math.PI + 0.7, phiLength: Math.PI * 2 - 1.4 });
-    add(hood, G, 0, 0, 0);
+  if (kind === 'quanam') {
+    // khăn trùm ôm sát đầu, chừa khe phía trước để lộ khuôn mặt
+    const hood = foldedLathe([[0.4, 1.95], [0.44, 2.3], [0.42, 2.65], [0.31, 2.9], [0.13, 3.0], [0.01, 3.03]], { seg: 32, fold: 0.01, phiStart: Math.PI + 0.8, phiLength: Math.PI * 2 - 1.6 });
+    add(hood, HOOD, 0, 0, 0);
     add(new THREE.LatheGeometry([[0.01, 0], [0.12, 0], [0.18, 0.2], [0.2, 0.4], [0.08, 0.65], [0.1, 0.8], [0.01, 0.8]].map(p => new THREE.Vector2(...p)), 14), G, -0.45, 1.25, 0.62);
   } else if (kind === 'diatang') {
-    add(new THREE.SphereGeometry(0.37, 20, 14, 0, Math.PI * 2, 0, Math.PI * 0.5), M.DARK, 0, 2.4, -0.01, false).scale.set(1, 1.1, 1);
     cyl(0.025, 0.025, 2.6, G, 0.82, 1.7, 0.45, b, 8);
     const ringT = add(new THREE.TorusGeometry(0.16, 0.025, 6, 16), G, 0.82, 3.0, 0.45); ringT.rotation.x = Math.PI / 2;
     add(new THREE.SphereGeometry(0.12, 12, 10), M.PEARL, -0.4, 1.12, 0.62, false);
