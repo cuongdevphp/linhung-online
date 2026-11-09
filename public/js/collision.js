@@ -1,9 +1,11 @@
 import { UP, POD, BELL, DRUM, inBounds, CUSHIONS, CUSHION_H } from '/shared/layout.js';
+import { stairQuery } from '/shared/stairs.js';
 
 /* Cao độ mặt đi được và va chạm đơn giản (hộp + trụ tròn). */
 export const STAIR_RUN = 10.5;   // đại bậc thang dài 10,5 m (21 bậc)
 
 export function heightAt(x, z) {
+  if (x < -41) { const q = stairQuery(x, z, 0.6); if (q) return q.h; }   // Đường Mây 1.080 bậc: dốc liên tục theo chặng, sân nghỉ phẳng
   if (z <= 0) {
     if (Math.abs(x) < 20 && z > -38 && z < -14) return POD;
     if (Math.abs(x) < 8 && z >= -14 && z < -10.5) return UP + (POD - UP) * (-10.5 - z) / 3.5;

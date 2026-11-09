@@ -9,6 +9,7 @@ import { makeArhat } from './arhat.js';
 import { buildHall } from './hall.js';
 import { buildKitchen } from './kitchen.js';
 import { buildDining } from './dining.js';
+import { buildPilgrimStairs } from './pilgrim.js';
 
 const flatRot = m => { m.rotation.x = -Math.PI / 2; return m; };
 
@@ -179,7 +180,9 @@ export function buildWorld(scene) {
   box(80, UP, ZB, M.STONE, 0, UP / 2, -ZB / 2);
   flatRot(mesh(new THREE.PlaneGeometry(79.4, ZB - 0.4), M.PAVE, 0, UP + 0.01, -(ZB - 0.4) / 2, stat, false));
   wall(0, -ZB - 0.2, 80, 0.8, 3, UP);
-  for (const sx of [-1, 1]) wall(sx * 39.9, -ZB / 2, 0.8, ZB, 3, UP);
+  wall(39.9, -ZB / 2, 0.8, ZB, 3, UP);                   // tường đông
+  wall(-39.9, -32.25, 0.8, 64.5, 3, UP);                 // tường tây, chừa cổng Đường Mây ở z = -64,5 … -71,5
+  wall(-39.9, -72.75, 0.8, 2.5, 3, UP);
 
   // đại bậc thang 21 bậc, lan can rồng, thềm rồng ở giữa
   {
@@ -278,6 +281,7 @@ export function buildWorld(scene) {
   buildHall(stat, W);
   buildKitchen(stat, W);
   buildDining(stat, W);
+  buildPilgrimStairs(stat, W);                           // Đường Mây 1.080 bậc phía sau, bên tây
 
   // dãy nhà Tổ - giảng đường phía sau chánh điện
   {

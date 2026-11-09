@@ -3,6 +3,7 @@
  * hiển thị, đếm số người và gửi vị trí y như người chơi bình thường, không cần sửa client nhiều.
  * Lộ trình đi dạo đã chọn thẳng qua các khoảng trống (không đụng cột đèn, La Hán, chậu cảnh, ao sen). */
 import * as L from '../shared/layout.js';
+import { STAIR_ROUTE } from '../shared/stairs.js';
 
 const TICK_MS = 100;
 const WALK_SPEED = 1.4;          // m/s, đi thong thả
@@ -83,6 +84,15 @@ const DINERS = [
 ];
 const DINING_SERVER = { name: 'Bác Chín', robe: 5, x: 5.4, z: -1.0 };   // xới cơm ở thùng, đứng quay về bắc
 
+/* ---- Khách hành hương trên Đường Mây (xem shared/stairs.js): đi dọc 10 chặng lên đỉnh rồi quay xuống, nghỉ chân ở mỗi đầu chặng ---- */
+const PILGRIM_ROUTE = STAIR_ROUTE.concat(STAIR_ROUTE.slice(1, -1).reverse());
+const PILGRIMS = [
+  { name: 'Cô Thu Hạnh', robe: 4, at: 0.04 },
+  { name: 'Chú Ba Thiện', robe: 1, at: 0.28 },
+  { name: 'Bác Tâm Từ', robe: 2, at: 0.52 },
+  { name: 'Anh Minh Nhật', robe: 5, at: 0.8 }
+];
+
 const rand = (a, b) => a + Math.random() * (b - a);
 const wrap = ry => ((ry % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
 
@@ -128,6 +138,13 @@ export function startNpcs(players, io, merit) {
   }
   const sv = add(DINING_SERVER.name, ROBE(DINING_SERVER.robe), L.DINING.x + DINING_SERVER.x, L.DINING.z + DINING_SERVER.z, Math.PI);
   sv.act = 'stir';
+
+  for (const pg of PILGRIMS) {                                         // khách hành hương leo Đường Mây, đi lên rồi đi xuống
+    const start = Math.min(PILGRIM_ROUTE.length - 1, Math.floor(pg.at * PILGRIM_ROUTE.length));
+    const p = add(pg.name, ROBE(pg.robe), PILGRIM_ROUTE[start][0], PILGRIM_ROUTE[start][1], 0);
+    Object.assign(p, { route: PILGRIM_ROUTE, wi: (start + 1) % PILGRIM_ROUTE.length, pause: rand(0, 6) });
+    walkers.push(p);
+  }
 
   for (const w of LAY_WALKERS) {
     const start = Math.floor(Math.random() * w.route.length);          // mỗi người bắt đầu ở một điểm khác nhau

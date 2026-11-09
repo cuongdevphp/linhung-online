@@ -4,7 +4,8 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ROBES, BELL, DRUM, STATUE, POND, BODHI, MO_PLAYER, POD } from '/shared/layout.js';
-import { buildTerrain } from './terrain.js';
+import { buildTerrain, terrainHeight } from './terrain.js';
+import { stairQuery, stairProgress, PILGRIM } from '/shared/stairs.js';
 import { buildWorld } from './world.js';
 import { heightAt, blocked, cushionNear, seatLiftAt } from './collision.js';
 import { createLife } from './life.js';
@@ -353,6 +354,7 @@ const ZONES = [
   { test: (x, z) => inHallAt(x, z), name: 'Đại Hùng Bảo Điện', sub: 'Thích Ca · Quán Thế Âm · Địa Tạng' },
   { test: (x, z) => Math.hypot(x - BELL.x, z - BELL.z) < 6, name: 'Gác chuông', sub: 'Một tiếng chuông, vạn điều an' },
   { test: (x, z) => Math.hypot(x - DRUM.x, z - DRUM.z) < 6, name: 'Gác trống', sub: 'Tiếng trống thức tỉnh tâm mê' },
+  { test: (x, z) => x < -41 && stairQuery(x, z, 1) !== null, name: 'Đường Mây · 1.080 bậc', sub: 'Đi chậm thôi, mỗi bước một câu niệm Phật' },
   { test: (x, z) => x > 24.5 && z < -65.3, name: 'Trai đường', sub: 'Ăn cơm trong chánh niệm, nhớ ơn người dâng cúng' },
   { test: (x, z) => Math.abs(x - 26.1) < 5.5 && Math.abs(z + 50) < 13, name: 'Nhà Trù', sub: 'Công quả là tu, một nồi cơm cũng là hành đạo' },
   { test: (x, z) => z <= 0 && Math.abs(x) > 30, name: 'Hành lang', sub: 'Bước chậm, nghe gió qua mái ngói' },
@@ -369,6 +371,7 @@ const ZONES = [
   { test: () => true, name: 'Sân chùa', sub: 'Hít thở sâu, bước chậm' }
 ];
 let zoneName = '', lastSend = 0, wasMoving = false, ambientT = 3;
+let stairTitle = '', stairSub = '', lastLanding = -1;
 const WALK_SPEED = 3.2;   // m/s khi đi bộ; giữ Shift thì chạy nhanh gấp 1,75 lần
 const clock = new THREE.Clock();
 const tmp = new THREE.Vector3(), focus = new THREE.Vector3(30, 0, 20), camTarget = new THREE.Vector3();
@@ -419,6 +422,7 @@ function update(dt, t) {
     const z = ZONES.find(z => z.test(p.x, p.z));
     if (z.name !== zoneName) {
       zoneName = z.name; $('#zone').textContent = z.name; $('#zoneSub').textContent = z.sub;
+      stairTitle = stairSub = '';
       if (z.name === 'Đài Quán Thế Âm' && !hintedLookUp) {
         hintedLookUp = true;
         setTimeout(() => toast('Kéo chuột (hoặc vuốt) <b>lên trên</b> để ngước nhìn Phật Bà cao 67 m'), 1200);
@@ -429,11 +433,25 @@ function update(dt, t) {
       }
     }
 
+    // Đường Mây: hiển thị chặng và số bậc đã đi, nhắc nghỉ chân ở mỗi sân nghỉ
+    const sp = z.name.startsWith('Đường Mây') ? stairProgress(p.x, p.z) : null;
+    if (sp) {
+      const title = `Đường Mây · Chặng ${sp.stage}/${PILGRIM.stages}`, sub = `Bậc ${sp.step}/${PILGRIM.steps}${sp.landing && sp.step > 0 ? ' · sân nghỉ' : ''}`;
+      if (title !== stairTitle) { stairTitle = title; $('#zone').textContent = title; }
+      if (sub !== stairSub) { stairSub = sub; $('#zoneSub').textContent = sub; }
+      if (sp.landing && sp.landingIndex > 0 && sp.landingIndex !== lastLanding) {
+        lastLanding = sp.landingIndex;
+        toast(sp.landingIndex === PILGRIM.stages
+          ? '🌄 Bạn đã lên tới <b>đỉnh Đường Mây</b> sau 1.080 bậc. Nam mô A Di Đà Phật.'
+          : `🪷 Xong <b>chặng ${sp.landingIndex}</b> (bậc ${sp.step}/1.080). Dừng lại, hít thở sâu rồi đi tiếp, đi chậm thôi.`);
+      }
+    }
+
     // camera bám theo (hạ thấp điểm nhìn khi ngồi thiền)
     eyeH += ((meditating ? 1.05 : 1.5) - eyeH) * Math.min(1, dt * 5);
     const ty = p.y + eyeH;
     tmp.set(p.x + Math.sin(camYaw) * Math.cos(camPitch) * camDist, ty + Math.sin(camPitch) * camDist, p.z + Math.cos(camYaw) * Math.cos(camPitch) * camDist);
-    tmp.y = Math.max(tmp.y, heightAt(tmp.x, tmp.z) + 0.6);
+    tmp.y = Math.max(tmp.y, Math.max(heightAt(tmp.x, tmp.z), tmp.x < -41 ? terrainHeight(tmp.x, tmp.z) : -Infinity) + 0.6);   // không chui xuống sườn núi khi leo Đường Mây
     if (inHall) tmp.y = Math.min(tmp.y, POD + 8);
     if (camSnap) { camera.position.copy(tmp); camSnap = false; }
     else camera.position.lerp(tmp, 1 - Math.exp(-dt * 7));
@@ -516,6 +534,7 @@ function update(dt, t) {
   if (anim.mo > 0) { anim.mo = Math.max(0, anim.mo - dt * 4); W.anim.mo.scale.set(1.1 + anim.mo * 0.12, 0.8 - anim.mo * 0.1, 0.9); } else W.anim.mo.scale.copy(moRest);
   W.anim.kitchen?.update(t, dt);
   W.anim.dining?.update(t, dt);
+  W.anim.pilgrim?.update(camera, env, t, dt);
   W.anim.flames?.forEach((f, i) => f.scale.set(1 + Math.sin(t * 17 + i) * 0.1, 1.8 + Math.sin(t * 13 + i) * 0.3, 1));
 
   // âm thanh môi trường

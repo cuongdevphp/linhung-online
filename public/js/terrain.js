@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { UP } from '/shared/layout.js';
+import { stairDistance, RAMP_K, START } from '/shared/stairs.js';
 import { clamp, lerp, smoothstep, fbm, rng, softDot } from './util.js';
 
 /* Địa hình quanh chùa: núi Sơn Trà ở phía bắc/tây, vách đá xuống biển ở phía nam/đông,
@@ -31,21 +32,39 @@ function outerHeight(x, z) {
   return lerp(h, SEA_FLOOR, coast);
 }
 
+/* Phần gồ ghề nhỏ của sườn núi (bỏ phần núi lớn), giữ lại khi vuốt sườn thành mặt dốc đều dưới Đường Mây. */
+function reliefOf(x, z) {
+  const north = clamp((8 - z) / 300, 0, 1.3), west = clamp((-30 - x) / 300, 0, 1.3);
+  const t = Math.min(1.2, Math.max(north, west * 0.9));
+  return 7 * fbm(x * 0.05, z * 0.05, 3, 9) * Math.min(1, t * 6) + 4 * (fbm(x * 0.03, z * 0.03, 3, 5) - 0.5);
+}
+
+/* Địa hình quanh Đường Mây (1.080 bậc): trong khoảng 24 m quanh đường, sườn núi được vuốt thành một mặt dốc đều
+ * (dốc RAMP_K) để các chặng chữ chi nằm trên sườn, ngoài 80 m trả về núi gốc; sát bậc thang thì san phẳng thành dải đường. */
+function pilgrimHeight(x, z, outer) {
+  const sd = stairDistance(x, z);
+  if (sd.d > 80) return outer;
+  const plane = FP_UPPER.base + RAMP_K * Math.max(0, START.z - z) + 0.3 * reliefOf(x, z);
+  let h = lerp(outer, plane, 1 - smoothstep(24, 80, sd.d));
+  h = lerp(h, sd.h - 0.5, 1 - smoothstep(0.8, 9, sd.d));
+  return h;
+}
+
 export function terrainHeight(x, z) {
   const dl = rectSDF(x, z, FP_LOWER), du = rectSDF(x, z, FP_UPPER);
   const d = Math.min(dl, du), base = dl <= du ? FP_LOWER.base : FP_UPPER.base;
   const w = 1 - smoothstep(0, 26, d);
-  return lerp(outerHeight(x, z), base, w);
+  return lerp(pilgrimHeight(x, z, outerHeight(x, z)), base, w);
 }
 
-/* Có nằm trong khuôn viên chùa (cộng lề) không? Dùng để không đặt cây vào sân. */
+/* Có nằm trong khuôn viên chùa (cộng lề) không? Dùng để không đặt cây vào sân hay lên Đường Mây. */
 export function inCompound(x, z, margin = 0) {
-  return Math.min(rectSDF(x, z, FP_LOWER), rectSDF(x, z, FP_UPPER)) < margin;
+  return Math.min(rectSDF(x, z, FP_LOWER), rectSDF(x, z, FP_UPPER)) < margin || stairDistance(x, z).d < margin + 6;
 }
 
 /* ----------------------------------------------------------------- */
 function buildGround(scene) {
-  const X0 = -450, X1 = 450, Z0 = -450, Z1 = 350, STEP = 4;
+  const X0 = -450, X1 = 450, Z0 = -640, Z1 = 350, STEP = 4;      // Z0 lùi sâu về phía núi để phủ hết Đường Mây (đỉnh ở z ≈ -405)
   const nx = Math.round((X1 - X0) / STEP), nz = Math.round((Z1 - Z0) / STEP);
   const pos = new Float32Array((nx + 1) * (nz + 1) * 3), col = new Float32Array((nx + 1) * (nz + 1) * 3);
   const idx = new Uint32Array(nx * nz * 6);
@@ -85,7 +104,7 @@ function buildGround(scene) {
 /* ----------------------------------------------------------------- */
 function buildForest(scene) {
   const R = rng(77);
-  const N = 1100;
+  const N = 1500;
   const trunkGeo = new THREE.CylinderGeometry(0.25, 0.42, 4, 6);
   trunkGeo.translate(0, 2, 0);
   const canGeo = new THREE.IcosahedronGeometry(1, 1);
@@ -96,7 +115,7 @@ function buildForest(scene) {
   const d = new THREE.Object3D(), c = new THREE.Color();
   let i = 0, tries = 0;
   while (i < N && tries++ < N * 12) {
-    const x = -330 + R() * 470, z = -330 + R() * 400;
+    const x = -330 + R() * 470, z = -520 + R() * 590;
     const dist = Math.hypot(x - 20, z + 10);
     if (R() > 1.15 - dist / 330) continue;           // thưa dần khi ra xa
     if (inCompound(x, z, 9)) continue;

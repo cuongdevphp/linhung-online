@@ -4,7 +4,9 @@
  * -z hướng lên núi Sơn Trà. Đơn vị: mét.
  */
 
-export const UP = 5;        // cao độ sân trên
+import { stairQuery, stairNearest, GATE_CORRIDOR } from './stairs.js';
+
+export const UP = 5;        // cao độ sân trên (stairs.js dùng cùng giá trị làm chân Đường Mây)
 export const POD = 6.2;     // cao độ nền Đại Hùng Bảo Điện
 
 export const GATE = { x: 0, z: 56 };
@@ -41,14 +43,20 @@ export const UPPER = { x1: -38.3, x2: 38.3, z1: -73, z2: 0 };   // sân sau đã
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
+const inGate = (x, z) => x >= GATE_CORRIDOR.x1 && x <= GATE_CORRIDOR.x2 && z >= GATE_CORRIDOR.z1 && z <= GATE_CORRIDOR.z2;
+
+/* Vùng đi được: hai sân, lối cổng ở tường tây sân sau và hệ 1.080 bậc thang Đường Mây (xem stairs.js). */
 export function inBounds(x, z) {
   return (x >= LOWER.x1 && x <= LOWER.x2 && z >= LOWER.z1 && z <= LOWER.z2) ||
-         (x >= UPPER.x1 && x <= UPPER.x2 && z >= UPPER.z1 && z <= UPPER.z2);
+         (x >= UPPER.x1 && x <= UPPER.x2 && z >= UPPER.z1 && z <= UPPER.z2) ||
+         inGate(x, z) || stairQuery(x, z, 0.4) !== null;
 }
 
 export function clampToBounds(x, z) {
-  if (z < 0) return [clamp(x, UPPER.x1, UPPER.x2), clamp(z, UPPER.z1, 0)];
-  return [clamp(x, LOWER.x1, LOWER.x2), clamp(z, 0, LOWER.z2)];
+  if (inBounds(x, z)) return [x, z];
+  const yard = z < 0 ? [clamp(x, UPPER.x1, UPPER.x2), clamp(z, UPPER.z1, 0)] : [clamp(x, LOWER.x1, LOWER.x2), clamp(z, 0, LOWER.z2)];
+  const st = stairNearest(x, z);
+  return st && st[2] < Math.hypot(x - yard[0], z - yard[1]) ? [st[0], st[1]] : yard;
 }
 
 export function spawnPoint() {
