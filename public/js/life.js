@@ -443,7 +443,7 @@ export function createLife(scene, W, sfx) {
 
     /* đom đóm (đêm) */
     const night = env.night;
-    fireflies.material.opacity = night * (0.7 + Math.sin(t * 2) * 0.25) * (1 - env.rain);
+    fireflies.material.opacity = night * (0.7 + Math.sin(t * 2) * 0.25) * (1 - env.rain) * (1 - env.snow);
     if (fireflies.material.opacity > 0.01) {
       const fp = ffGeo.attributes.position;
       for (let i = 0; i < FF; i++) {

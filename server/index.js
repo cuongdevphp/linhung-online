@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as L from '../shared/layout.js';
 import { startNpcs } from './npc.js';
+import { CABLE, fortuneFor, validBirthYear } from '../shared/summit.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.env.PORT) || 5000;
@@ -18,6 +19,8 @@ const MAX_SPEED = 12;                 // m/s, lớn hơn tốc độ chạy 9 m/
 const WEATHER_MIN_MS = 15000;         // giãn cách tối thiểu giữa hai lần đổi thời tiết
 const MAX_INCENSE = 80;
 const MAX_LANTERNS = 80;
+const RIDE_GAP_MS = 9000;             // hai chuyến cáp treo xuất phát cách nhau ít nhất bấy lâu để cabin không chồng lên nhau
+let lastRideAt = 0;
 
 /* ====================== HTTP ====================== */
 const app = express();
@@ -85,7 +88,19 @@ function bucket(rate, burst) {
   };
 }
 
-const pub = p => ({ id: p.id, name: p.name, color: p.color, x: p.x, z: p.z, ry: p.ry, moving: p.moving, sitting: p.sitting, act: p.act, monk: p.monk });
+const pub = p => ({ id: p.id, name: p.name, color: p.color, x: p.x, z: p.z, ry: p.ry, moving: p.moving, sitting: p.sitting, act: p.act, monk: p.monk, ride: p.ride || undefined });
+
+/* Ngày hiện tại theo giờ Việt Nam (UTC+7), dạng YYYY-MM-DD, làm hạt giống cho kết quả tử vi trong ngày. */
+const vnDay = () => new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10);
+
+/* Kết thúc chuyến cáp treo: đặt người chơi ở ga chân núi và báo cho mọi người. */
+function endRide(id) {
+  const p = players.get(id);
+  if (!p || !p.ride) return;
+  p.ride = null;
+  p.x = CABLE.exit.x; p.z = CABLE.exit.z; p.ry = CABLE.exit.ry; p.moving = false; p.lastMove = Date.now();
+  io.emit('rideEnd', { id, x: p.x, z: p.z, ry: p.ry });
+}
 
 function prune() {
   const now = Date.now();
@@ -101,7 +116,7 @@ function setWeather(key, by) {
 }
 
 /* Thời tiết tự đổi sau mỗi 5-10 phút, ưu tiên trời đẹp. */
-const WEIGHTS = { nang: 5, binhminh: 1.5, hoanghon: 1.5, may: 2, mua: 2, giong: 1, suong: 2, dem: 2 };
+const WEIGHTS = { nang: 5, binhminh: 1.5, hoanghon: 1.5, may: 2, mua: 2, giong: 1, suong: 2, dem: 2, tuyet: 1.5 };
 function pickWeather() {
   const keys = L.WEATHER_KEYS.filter(k => k !== weather.key);
   const total = keys.reduce((s, k) => s + WEIGHTS[k], 0);
@@ -128,6 +143,8 @@ io.on('connection', socket => {
   const allowAction = bucket(6, 8);
   const allowWeather = bucket(0.2, 2);
   const allowSit = bucket(1, 4);
+  const allowFortune = bucket(0.5, 2);
+  const allowCable = bucket(0.3, 2);
   const cool = {};
 
   socket.on('join', d => {
@@ -152,7 +169,7 @@ io.on('connection', socket => {
 
   socket.on('move', d => {
     const p = players.get(socket.id);
-    if (!p || !d || !allowMove()) return;
+    if (!p || !d || p.ride || !allowMove()) return;                  // đang ngồi cáp treo thì vị trí do server điều khiển
     const x = Number(d.x), z = Number(d.z), ry = Number(d.ry);
     if (!Number.isFinite(x) || !Number.isFinite(z) || !Number.isFinite(ry)) return;
     const now = Date.now();
@@ -173,7 +190,7 @@ io.on('connection', socket => {
   /* Ngồi thiền / đứng dậy. Mỗi lần ngồi được +1 công đức, cách nhau tối thiểu 30 giây. */
   socket.on('sit', on => {
     const p = players.get(socket.id);
-    if (!p || !allowSit()) return;
+    if (!p || p.ride || !allowSit()) return;
     on = on === true;
     if (p.sitting === on) return;
     p.sitting = on;
@@ -219,6 +236,33 @@ io.on('connection', socket => {
       while (lanterns.length > MAX_LANTERNS) lanterns.shift();
       io.emit('lantern', l);
     }
+  });
+
+  /* Xem tử vi ở Tử Vi Đường: chỉ trả kết quả cho người hỏi. Cùng năm sinh, cùng ngày thì ra cùng kết quả. Chỉ để giải trí. */
+  socket.on('fortune', d => {
+    const p = players.get(socket.id);
+    if (!p || !allowFortune()) return;
+    const s = L.SPOTS.find(s => s.type === 'fortune');
+    if (Math.hypot(p.x - s.x, p.z - s.z) > s.r + 3.5) return socket.emit('notice', 'Hãy lại gần Tử Vi Đường');
+    const year = Number(d && d.year);
+    if (!validBirthYear(year)) return socket.emit('notice', 'Năm sinh chưa hợp lệ');
+    socket.emit('fortune', fortuneFor(year, vnDay()));
+  });
+
+  /* Cáp treo một chiều từ ga Đỉnh Mây xuống ga chân núi. Chuyến chạy theo giờ server, mọi người cùng thấy. */
+  socket.on('cable', () => {
+    const p = players.get(socket.id);
+    if (!p || p.ride || !allowCable()) return;
+    const s = L.SPOTS.find(s => s.type === 'cable');
+    if (Math.hypot(p.x - s.x, p.z - s.z) > s.r + 3.5) return socket.emit('notice', 'Hãy lại gần ga cáp treo');
+    const now = Date.now();
+    if (now - lastRideAt < RIDE_GAP_MS) return socket.emit('notice', 'Cabin vừa rời ga, xin chờ vài giây…');
+    lastRideAt = now;
+    p.ride = { t0: now, dur: CABLE.rideMs };
+    p.moving = false;
+    if (p.sitting) { p.sitting = false; socket.broadcast.emit('sit', { id: p.id, on: false }); }
+    io.emit('ride', { id: p.id, t0: now, dur: CABLE.rideMs });
+    setTimeout(() => endRide(socket.id), CABLE.rideMs + 400).unref();
   });
 
   socket.on('weather:set', key => {

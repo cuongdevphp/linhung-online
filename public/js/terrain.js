@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { UP } from '/shared/layout.js';
-import { stairDistance, RAMP_K, START } from '/shared/stairs.js';
+import { stairDistance, RAMP_K, START, PLAZA } from '/shared/stairs.js';
 import { clamp, lerp, smoothstep, fbm, rng, softDot } from './util.js';
 
 /* Địa hình quanh chùa: núi Sơn Trà ở phía bắc/tây, vách đá xuống biển ở phía nam/đông,
@@ -43,9 +43,14 @@ function reliefOf(x, z) {
  * (dốc RAMP_K) để các chặng chữ chi nằm trên sườn, ngoài 80 m trả về núi gốc; sát bậc thang thì san phẳng thành dải đường. */
 function pilgrimHeight(x, z, outer) {
   const sd = stairDistance(x, z);
-  if (sd.d > 80) return outer;
+  /* Chóp núi: quanh sân đỉnh, núi hạ dần ra xa (dốc 0,35) để sân nằm trên đỉnh chứ không bị đồi cao hơn bao quanh.
+   * Ảnh hưởng nhạt dần và hết hẳn ở khoảng 220 m tính từ mép sân. */
+  const dP = Math.max(0, Math.hypot(x - PLAZA.x, z - PLAZA.z) - PLAZA.r);
+  const peakCap = PLAZA.h - 0.5 - 0.35 * Math.max(0, dP - 6), wCap = 1 - smoothstep(40, 220, dP);
+  const capped = h => lerp(h, Math.min(h, peakCap), wCap);
+  if (sd.d > 80) return capped(outer);
   const plane = FP_UPPER.base + RAMP_K * Math.max(0, START.z - z) + 0.3 * reliefOf(x, z);
-  let h = lerp(outer, plane, 1 - smoothstep(24, 80, sd.d));
+  let h = capped(lerp(outer, plane, 1 - smoothstep(24, 80, sd.d)));
   h = lerp(h, sd.h - 0.5, 1 - smoothstep(0.8, 9, sd.d));
   return h;
 }

@@ -69,21 +69,11 @@ function buildGate(scene) {
   return g;
 }
 
-/* Đỉnh Đường Mây: sân nghỉ cuối cùng có Đình Mây (bốn cột, mái nhỏ) và bia đá ghi lại hành trình. */
-function buildSummit(scene, L, entry) {
+/* Sân nghỉ cuối của 1.080 bậc: nằm lọt ở mép nam của sân đỉnh (public/js/summit.js), nên chỉ dựng nền lát. */
+function buildSummit(scene, L) {
   const g = new THREE.Group(); g.position.set(L.x, L.h, L.z); scene.add(g);
   cyl(landingR + 0.35, landingR + 0.35, 3, M.STONE, 0, -1.5, 0, g, 48);
   cyl(landingR - 0.5, landingR - 0.5, 0.1, M.PAVE, 0, 0, 0, g, 48, false);
-  const cx = -entry[0] / landingR * 2.3, cz = -entry[1] / landingR * 2.3;              // phía đối diện lối lên
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-    column(g, cx + sx * 1.9, 0, cz + sz * 1.9, 3.3, 0.2);
-    blockCircle(L.x + cx + sx * 1.9, L.z + cz + sz * 1.9, 0.35);
-  }
-  roof(g, { w: 6.4, d: 6.4, h: 1.8, y: 3.3, s: 0.55, x: cx, z: cz });
-  const sg = new THREE.Group(); sg.position.set(cx, 0, cz - 0.4); sg.rotation.y = Math.atan2(-cx, -cz); g.add(sg);   // bia quay mặt về lối lên
-  box(1.5, 1.9, 0.4, M.STONE, 0, 0.95, 0, sg);
-  textPlate('ĐỈNH ĐƯỜNG MÂY', 1.3, 0.6, 0, 1.2, 0.22, sg, 0, { size: 0.36 });
-  blockCircle(L.x + cx, L.z + cz - 0.4, 0.9);
   return g;
 }
 
@@ -117,7 +107,7 @@ export function buildPilgrimStairs(scene, W) {
     const entry = i === 0 ? [landingR, 0] : tx({ ux: -STAIR_LEGS[i - 1].ux, uz: -STAIR_LEGS[i - 1].uz });
     const exit = i < STAIR_LEGS.length ? tx(STAIR_LEGS[i]) : null;
     if (i === STAIR_LANDINGS.length - 1) {
-      buildSummit(scene, L, entry);
+      buildSummit(scene, L);
     } else {
       const label = i === 0 ? 'CHÂN ĐƯỜNG MÂY' : `CHẶNG ${i} · BẬC ${i * perStage}`;
       landingBuild(scene, L, entry, exit, label);

@@ -5,7 +5,8 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ROBES, BELL, DRUM, STATUE, POND, BODHI, MO_PLAYER, POD } from '/shared/layout.js';
 import { buildTerrain, terrainHeight } from './terrain.js';
-import { stairQuery, stairProgress, PILGRIM } from '/shared/stairs.js';
+import { stairQuery, stairProgress, PILGRIM, PLAZA_DISCS, LOWER_PAD } from '/shared/stairs.js';
+import { SUMMIT_ZONES } from '/shared/summit.js';
 import { buildWorld } from './world.js';
 import { heightAt, blocked, cushionNear, seatLiftAt } from './collision.js';
 import { createLife } from './life.js';
@@ -86,10 +87,33 @@ function createPlayer(p) {
   const o = Object.assign(h, { id: p.id, name: p.name, color: p.color, label, target: new THREE.Vector3(p.x, 0, p.z), targetRy: p.ry, moving: !!p.moving, sitting: !!p.sitting, walk: 0, bow: 0, bubble: null, bubbleT: 0 });
   if (p.act) attachWork(o, p.act);                       // Phật tử làm công quả trong nhà bếp
   players.set(p.id, o);
+  if (p.ride) startRide(o, p.ride);                      // vào chùa giữa lúc ai đó đang ngồi cáp treo
   return o;
+}
+
+/* ---- cáp treo: vị trí cabin tính từ giờ server nên mọi người thấy cùng một chuyến ---- */
+function startRide(o, r) {
+  if (o.ride) return;
+  o.ride = { t0: r.t0 / 1000, dur: r.dur / 1000, cabin: W.cable.makeCabin() };
+  o.sitting = true; o.moving = false;
+  if (o === me) { meditating = false; updateSitUI(); }
+}
+function endRide(o, x, z, ry) {
+  if (o.ride) { W.cable.remove(o.ride.cabin); o.ride = null; }
+  o.sitting = false; o.moving = false;
+  o.root.position.set(x, heightAt(x, z), z); o.root.rotation.y = ry; o.target.set(x, 0, z); o.targetRy = ry;
+}
+function rideStep(o, st, t) {
+  const r = o.ride, u = clamp((st - r.t0) / r.dur, 0, 1);
+  const y = W.cable.place(r.cabin, u, W.cable.laneDown, t);
+  o.root.position.set(r.cabin.position.x, y + 0.3, r.cabin.position.z);
+  o.root.rotation.y = W.cable.heading; o.targetRy = W.cable.heading;
+  o.target.set(o.root.position.x, 0, o.root.position.z);
+  o.sitting = true; o.moving = false;
 }
 function removePlayer(id) {
   const o = players.get(id); if (!o) return;
+  if (o.ride) W.cable.remove(o.ride.cabin);
   scene.remove(o.root); o.label.userData.dispose?.(); o.bubble?.userData.dispose?.();
   players.delete(id);
 }
@@ -204,6 +228,16 @@ socket.on('system', t => addMsg(null, t));
 socket.on('notice', t => { if (joined) toast(esc(t)); else showJoinMsg(t); });
 socket.on('moved', d => { const o = players.get(d.id); if (o) { o.target.set(d.x, 0, d.z); o.targetRy = d.ry; o.moving = d.moving; } });
 socket.on('sit', d => { const o = players.get(d.id); if (o && o !== me) o.sitting = !!d.on; });
+socket.on('ride', d => {
+  const o = players.get(d.id); if (!o) return;
+  startRide(o, d);
+  if (o === me) toast('🚡 Cáp treo đang đưa bạn xuống chùa · ngắm biển mây nhé');
+});
+socket.on('rideEnd', d => {
+  const o = players.get(d.id); if (!o) return;
+  endRide(o, d.x, d.z, d.ry);
+  if (o === me) { camSnap = true; toast('🙏 Đã xuống tới chân núi · bước vào cổng để về chùa'); }
+});
 socket.on('incense', life.addIncense);
 socket.on('lantern', l => life.addLantern(l));
 socket.on('chat', m => { addMsg(m.name, m.text, m.color); const o = players.get(m.id); if (o) showBubble(o, m.text); });
@@ -229,7 +263,7 @@ const anim = { bell: 0, drum: 0, mo: 0 };
 socket.on('action', d => {
   setMerit(d.merit, !d.npc);
   const o = players.get(d.id);
-  if (d.type === 'bow' && o) o.bow = 1;
+  if ((d.type === 'bow' || d.type === 'incenseTop') && o) o.bow = 1;
   if (d.type === 'bell') { anim.bell = 1; sfx.bell(volAt(BELL.x, BELL.z, 90)); }
   if (d.type === 'drum') { anim.drum = 1; sfx.drum(volAt(DRUM.x, DRUM.z, 70)); }
   if (d.type === 'mo') { anim.mo = 1; sfx.mo(volAt(MO_PLAYER.x, MO_PLAYER.z, 30)); }
@@ -237,7 +271,7 @@ socket.on('action', d => {
   if (d.id === selfId) {
     const msg = {
       bow: bowMessage(), bell: '🔔 Tiếng chuông ngân xa…', drum: '🥁 Tùng! Trống vang khắp núi', mo: '🪵 Cốc! Tâm tịnh ý an',
-      incense: '🪔 Nén nhang thơm dâng lên', lantern: '🏮 Hoa đăng nở trên hồ sen, gửi lời nguyện ước',
+      incense: '🪔 Nén nhang thơm dâng lên', incenseTop: '🪔 Dâng hương Chùa Đồng, nguyện cầu bình an, tài lộc, sức khỏe', lantern: '🏮 Hoa đăng nở trên hồ sen, gửi lời nguyện ước',
       meditate: '🧘 Hơi thở nhẹ, tâm lặng như hồ sen'
     }[d.type];
     toast(`${msg} · <b>+1 công đức</b>`);
@@ -254,7 +288,7 @@ let camYaw = 0, camPitch = 0.3, camDist = 9.5;
 let viewTilt = 0;            // ngước nhìn lên (rad): kéo chuột lên quá giới hạn để xem đầu tượng Quán Thế Âm
 let nearSpot = null;
 let camSnap = false;
-let hintedLookUp = false, hintedSit = false, hintedHall = false;
+let hintedLookUp = false, hintedSit = false, hintedHall = false, hintedSummit = false;
 let meditating = false;      // mình đang ngồi thiền
 let eyeH = 1.5;              // độ cao điểm nhìn của camera so với chân nhân vật (thấp xuống khi ngồi)
 
@@ -274,26 +308,93 @@ function setSitting(on) {
     sfx.chime(0.3);
     const p = me.root.position, c = cushionNear(p.x, p.z);
     if (c) {
-      p.x = c.x; p.z = c.z; me.targetRy = Math.PI;
-      socket.volatile.emit('move', { x: p.x, z: p.z, ry: Math.PI, moving: false });
+      const ry = c.ry ?? Math.PI;                         // chánh điện: quay về bàn thờ; thiền đài: quay vào tâm đài
+      p.x = c.x; p.z = c.z; me.targetRy = ry;
+      socket.volatile.emit('move', { x: p.x, z: p.z, ry, moving: false });
     }
     if (!hintedSit) { hintedSit = true; toast('Nhấn <b>T</b>, bấm nút <b>Đứng dậy</b> hoặc bước đi để xả thiền'); }
   }
 }
 
+/* ---- sân đỉnh: ngắm mây, check-in, tử vi, cáp treo ---- */
+const VIEW_MSG = {
+  binhminh: '🌅 Mặt trời nhô lên từ biển Đông, biển mây nhuộm hồng dưới chân bạn',
+  hoanghon: '🌇 Hoàng hôn rót vàng lên biển mây, gió dịu dần',
+  nang: '☁️ Mây trắng cuộn dưới chân, nắng trải xuống mặt biển xa tít',
+  may: '☁️ Trời âm u, mây nối liền trời. Bạn đang đứng giữa mây',
+  mua: '🌧️ Mưa trút dưới thung, trên đỉnh chỉ còn tiếng gió và tiếng mưa',
+  giong: '⛈️ Giông kéo dưới chân núi, thỉnh thoảng sét lóe trong mây',
+  suong: '🌫️ Sương phủ kín, mọi thứ như tan vào mây',
+  dem: '🌙 Trăng sáng trên biển mây, đêm núi tĩnh lặng',
+  tuyet: '❄️ Tuyết rơi trên đỉnh núi, biển mây lặng im dưới ánh đèn lồng'
+};
+let hintedCloud = false, photoTimer = 0;
+function doView() {
+  const k = weather.key;
+  toast(VIEW_MSG[k] || VIEW_MSG.nang);
+  if (!hintedCloud && k !== 'binhminh' && k !== 'hoanghon') {
+    hintedCloud = true;
+    setTimeout(() => toast('Mở menu thời tiết, chọn <b>🌅 Bình minh</b> hoặc <b>🌇 Hoàng hôn</b> để săn mây thấu kính'), 1700);
+  }
+}
+function doPhoto() {
+  const on = !document.body.classList.contains('photo');
+  document.body.classList.toggle('photo', on);
+  clearTimeout(photoTimer);
+  if (on) photoTimer = setTimeout(() => { document.body.classList.remove('photo'); toast('📸 Check-in xong! Nhấn <b>H</b> bất cứ lúc nào để ẩn giao diện chụp ảnh'); }, 10000);
+}
+function doCable() {
+  if (me.ride) return;
+  setSitting(false);
+  socket.emit('cable');
+}
+
+const stars = n => '★'.repeat(n) + '☆'.repeat(5 - n);
+function openFortune() {
+  if (nearSpot?.type !== 'fortune') return toast('Hãy lại gần Tử Vi Đường');
+  setSitting(false);
+  $('#fortune').hidden = false;
+  try { $('#fortuneYear').value = localStorage.getItem('linhung-year') || ''; } catch { /* chế độ riêng tư */ }
+  $('#fortuneResult').innerHTML = '';
+  $('#fortuneYear').focus();
+}
+function closeFortune() { $('#fortune').hidden = true; $('#fortuneYear').blur(); }
+$('#fortuneClose').addEventListener('click', closeFortune);
+$('#fortuneForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const year = Number($('#fortuneYear').value);
+  if (!Number.isInteger(year) || year < 1900 || year > new Date().getFullYear()) return toast('Hãy nhập năm sinh dương lịch, ví dụ 1990');
+  try { localStorage.setItem('linhung-year', String(year)); } catch { /* bỏ qua */ }
+  socket.emit('fortune', { year });
+});
+socket.on('fortune', f => {
+  const row = (label, n) => `<div class="fz-row"><span>${label}</span><b>${stars(n)}</b></div>`;
+  $('#fortuneResult').innerHTML =
+    `<div class="fz-head"><b>${esc(f.can)} ${esc(f.chi)}</b> · tuổi ${esc(f.animal)} · hành ${esc(f.hanh)}</div>` +
+    row('Tài lộc', f.stars.tai) + row('Công việc', f.stars.viec) + row('Sức khỏe', f.stars.khoe) + row('Tình duyên · gia đạo', f.stars.tinh) +
+    `<p class="fz-lucky">Màu hợp: <b>${esc(f.mau)}</b> · Số may mắn: <b>${f.so}</b><br>Giờ tốt trong ngày: <b>${esc(f.gio)}</b></p>` +
+    `<p class="fz-advice">“${esc(f.advice)}”</p>` +
+    `<small>Tử vi ngày ${esc(f.day)} · chỉ mang tính giải trí. Làm việc lành mỗi ngày mới là điều giữ được vận.</small>`;
+});
+
 function doAction(type) {
-  if (!joined) return;
+  if (!joined || me?.ride) return;
   if (type === 'meditate') return setSitting(!meditating);
+  if (type === 'view' || type === 'photo') return nearSpot?.type === type ? (type === 'view' ? doView() : doPhoto()) : undefined;
   if (!socket.connected) return toast('Mất kết nối, đang thử lại…');
   if (type !== 'bow' && (!nearSpot || nearSpot.type !== type)) return toast('Hãy lại gần để ' + esc(W.spots.find(s => s.type === type).text));
+  if (type === 'fortune') return openFortune();
+  if (type === 'cable') return doCable();
   if (type !== 'bow') setSitting(false);                 // đứng dậy trước khi đánh chuông, trống, thắp nhang…
   socket.emit('action', { type });
 }
 document.querySelectorAll('.act').forEach(b => b.addEventListener('click', () => doAction(b.dataset.act)));
+$('#prompt').addEventListener('click', () => { if (nearSpot) doAction(nearSpot.type); });   // chạm vào gợi ý để tương tác (điện thoại không có phím E)
 
 addEventListener('keydown', e => {
-  if (e.target.tagName === 'INPUT') { if (e.key === 'Escape') e.target.blur(); return; }
+  if (e.target.tagName === 'INPUT') { if (e.key === 'Escape') { e.target.blur(); closeFortune(); } return; }
   if (!joined) return;
+  if (!$('#fortune').hidden) { if (e.key === 'Escape') closeFortune(); return; }       // đang mở bảng tử vi thì không điều khiển nhân vật
   const k = e.key.toLowerCase();
   if (e.key === 'Enter') { e.preventDefault(); $('#chatInput').focus(); return; }
   keys[k] = true;
@@ -350,10 +451,14 @@ stick.addEventListener('pointermove', e => { if (e.pointerId === joy.id) moveJoy
 stick.addEventListener('pointerup', endJoy); stick.addEventListener('pointercancel', endJoy);
 
 /* ====================== VÒNG LẶP ====================== */
+const onSummit = (x, z) => z < -380 && PLAZA_DISCS.some(D => Math.hypot(x - D.x, z - D.z) <= D.r + 0.5);   // trên sân đỉnh (kể cả hai đài)
 const ZONES = [
+  { test: () => !!me?.ride, name: 'Cáp treo Đỉnh Mây', sub: 'Trượt xuống chùa, ngắm biển mây từ trên cao' },
   { test: (x, z) => inHallAt(x, z), name: 'Đại Hùng Bảo Điện', sub: 'Thích Ca · Quán Thế Âm · Địa Tạng' },
   { test: (x, z) => Math.hypot(x - BELL.x, z - BELL.z) < 6, name: 'Gác chuông', sub: 'Một tiếng chuông, vạn điều an' },
   { test: (x, z) => Math.hypot(x - DRUM.x, z - DRUM.z) < 6, name: 'Gác trống', sub: 'Tiếng trống thức tỉnh tâm mê' },
+  ...SUMMIT_ZONES.map(s => ({ name: s.name, sub: s.sub, test: (x, z) => onSummit(x, z) && (s.x === undefined || Math.hypot(x - s.x, z - s.z) < s.r) })),
+  { test: (x, z) => x > LOWER_PAD.x1 && x < LOWER_PAD.x2 && z > LOWER_PAD.z1 + 2.5 && z < LOWER_PAD.z2, name: 'Ga cáp treo chân núi', sub: 'Về lại chùa · Nam mô A Di Đà Phật' },
   { test: (x, z) => x < -41 && stairQuery(x, z, 1) !== null, name: 'Đường Mây · 1.080 bậc', sub: 'Đi chậm thôi, mỗi bước một câu niệm Phật' },
   { test: (x, z) => x > 24.5 && z < -65.3, name: 'Trai đường', sub: 'Ăn cơm trong chánh niệm, nhớ ơn người dâng cúng' },
   { test: (x, z) => Math.abs(x - 26.1) < 5.5 && Math.abs(z + 50) < 13, name: 'Nhà Trù', sub: 'Công quả là tu, một nồi cơm cũng là hành đạo' },
@@ -372,7 +477,8 @@ const ZONES = [
 ];
 let zoneName = '', lastSend = 0, wasMoving = false, ambientT = 3;
 let stairTitle = '', stairSub = '', lastLanding = -1;
-const WALK_SPEED = 3.2;   // m/s khi đi bộ; giữ Shift thì chạy nhanh gấp 1,75 lần
+const WALK_SPEED = 4.0;   // m/s khi đi bộ trên đường bằng; giữ Shift thì chạy nhanh gấp 1,75 lần
+const CLIMB_SPEED = 3.2;  // tốc độ gốc dùng để tính lúc leo dốc/bậc thang, giữ nguyên như trước để bậc thang không nhanh lên
 const clock = new THREE.Clock();
 const tmp = new THREE.Vector3(), focus = new THREE.Vector3(30, 0, 20), camTarget = new THREE.Vector3();
 const moRest = new THREE.Vector3(1.1, 0.8, 0.9);
@@ -387,7 +493,7 @@ function update(dt, t) {
     if (keys.w || keys.arrowup) f++; if (keys.s || keys.arrowdown) f--;
     if (keys.d || keys.arrowright) r++; if (keys.a || keys.arrowleft) r--;
     if (joy.id !== null) { f -= joy.y; r += joy.x; }
-    const mag = Math.min(1, Math.hypot(f, r)), moving = mag > 0.1;
+    const mag = Math.min(1, Math.hypot(f, r)), moving = mag > 0.1 && !me.ride;      // đang ngồi cáp treo thì không tự đi
     const p = me.root.position;
     if (moving && meditating) setSitting(false);           // bấm phím đi là xả thiền
     if (moving) {
@@ -395,9 +501,12 @@ function update(dt, t) {
       let mx = fx * f + rx * r, mz = fz * f + rz * r; const l = Math.hypot(mx, mz) || 1; mx /= l; mz /= l;
       let speed = (keys.shift ? WALK_SPEED * 1.75 : WALK_SPEED) * mag * dt;
       const h0 = heightAt(p.x, p.z);
-      // lên dốc/bậc thang thì chậm lại theo độ dốc (đại bậc thang dốc ~0,48 -> còn khoảng một nửa)
+      // lên dốc/bậc thang thì chậm lại theo độ dốc (đại bậc thang dốc ~0,48 -> còn khoảng một nửa).
+      // Trên dốc/bậc thang dùng tốc độ gốc CLIMB_SPEED nên đường bằng nhanh lên còn bậc thang giữ nguyên như cũ, cả lúc lên lẫn lúc xuống.
       const rise = (heightAt(p.x + mx * speed, p.z + mz * speed) - h0) / Math.max(speed, 1e-6);
-      if (rise > 0.02) speed *= clamp(1 - rise * 1.1, 0.4, 1);
+      const climb = (keys.shift ? CLIMB_SPEED * 1.75 : CLIMB_SPEED) * mag * dt;
+      if (rise > 0.02) speed = Math.min(speed, climb * clamp(1 - rise * 1.1, 0.4, 1));
+      else if (rise < -0.02) speed = Math.min(speed, climb);
       if (!blocked(p.x + mx * speed, p.z, h0)) p.x += mx * speed;
       const h1 = heightAt(p.x, p.z);
       if (!blocked(p.x, p.z + mz * speed, h1)) p.z += mz * speed;
@@ -410,7 +519,7 @@ function update(dt, t) {
       lastSend = t; wasMoving = moving;
     }
 
-    nearSpot = W.spots.find(s => Math.hypot(p.x - s.x, p.z - s.z) < s.r) || null;
+    nearSpot = me.ride ? null : W.spots.find(s => Math.hypot(p.x - s.x, p.z - s.z) < s.r) || null;
     const pr = $('#prompt');
     if (nearSpot) { pr.innerHTML = `Nhấn <kbd>E</kbd> để ${esc(nearSpot.text)}`; pr.classList.add('show'); } else pr.classList.remove('show');
     const inHall = inHallAt(p.x, p.z), nearStatue = Math.hypot(p.x - STATUE.x, p.z - STATUE.z) < 34;
@@ -426,6 +535,11 @@ function update(dt, t) {
       if (z.name === 'Đài Quán Thế Âm' && !hintedLookUp) {
         hintedLookUp = true;
         setTimeout(() => toast('Kéo chuột (hoặc vuốt) <b>lên trên</b> để ngước nhìn Phật Bà cao 67 m'), 1200);
+      }
+      if (onSummit(p.x, p.z) && !hintedSummit) {
+        hintedSummit = true;
+        toast('🌄 Bạn đã lên tới <b>đỉnh Đường Mây</b> sau 1.080 bậc. Nam mô A Di Đà Phật.');
+        setTimeout(() => toast('Muốn xuống nhanh? Ra <b>ga cáp treo</b> ở góc tây nam sân'), 3600);
       }
       if (z.name === 'Đại Hùng Bảo Điện' && !hintedHall) {
         hintedHall = true;
@@ -451,7 +565,8 @@ function update(dt, t) {
     eyeH += ((meditating ? 1.05 : 1.5) - eyeH) * Math.min(1, dt * 5);
     const ty = p.y + eyeH;
     tmp.set(p.x + Math.sin(camYaw) * Math.cos(camPitch) * camDist, ty + Math.sin(camPitch) * camDist, p.z + Math.cos(camYaw) * Math.cos(camPitch) * camDist);
-    tmp.y = Math.max(tmp.y, Math.max(heightAt(tmp.x, tmp.z), tmp.x < -41 ? terrainHeight(tmp.x, tmp.z) : -Infinity) + 0.6);   // không chui xuống sườn núi khi leo Đường Mây
+    const onMountain = tmp.x < -41 || tmp.z < -76;
+    tmp.y = Math.max(tmp.y, Math.max(heightAt(tmp.x, tmp.z), onMountain ? terrainHeight(tmp.x, tmp.z) : -Infinity) + 0.6);   // không chui xuống sườn núi khi leo Đường Mây và trên đỉnh
     if (inHall) tmp.y = Math.min(tmp.y, POD + 8);
     if (camSnap) { camera.position.copy(tmp); camSnap = false; }
     else camera.position.lerp(tmp, 1 - Math.exp(-dt * 7));
@@ -468,14 +583,15 @@ function update(dt, t) {
 
   /* --- mọi người chơi --- */
   for (const o of players.values()) {
-    if (o !== me) {
+    if (o.ride) rideStep(o, st, t);                          // ngồi trong cabin: vị trí theo giờ server
+    else if (o !== me) {
       o.root.position.x += (o.target.x - o.root.position.x) * Math.min(1, dt * 10);
       o.root.position.z += (o.target.z - o.root.position.z) * Math.min(1, dt * 10);
       o.root.rotation.y = lerpAngle(o.root.rotation.y, o.targetRy, Math.min(1, dt * 10));
     }
     if (o.sitting !== o.seatedPose) o.setSeated(o.sitting);
     const p = o.root.position;
-    p.y += (heightAt(p.x, p.z) + (o.sitting ? seatLiftAt(p.x, p.z) : 0) - p.y) * Math.min(1, dt * 14);
+    if (!o.ride) p.y += (heightAt(p.x, p.z) + (o.sitting ? seatLiftAt(p.x, p.z) : 0) - p.y) * Math.min(1, dt * 14);
     // nhịp chân theo tốc độ thực tế (m/s), nên đi chậm hay leo bậc thang thì chân bước chậm theo, không trượt
     const vNow = Math.hypot(p.x - (o.px ?? p.x), p.z - (o.pz ?? p.z)) / Math.max(dt, 1e-3);
     o.px = p.x; o.pz = p.z; o.vel = (o.vel ?? vNow) + (vNow - (o.vel ?? vNow)) * Math.min(1, dt * 8);
@@ -535,6 +651,8 @@ function update(dt, t) {
   W.anim.kitchen?.update(t, dt);
   W.anim.dining?.update(t, dt);
   W.anim.pilgrim?.update(camera, env, t, dt);
+  W.anim.summit?.update(camera, env, t, dt);
+  W.cable?.update(st, t);
   W.anim.flames?.forEach((f, i) => f.scale.set(1 + Math.sin(t * 17 + i) * 0.1, 1.8 + Math.sin(t * 13 + i) * 0.3, 1));
 
   // âm thanh môi trường
@@ -542,7 +660,7 @@ function update(dt, t) {
   if (ambientT <= 0 && sfx.ready()) {
     ambientT = 2 + Math.random() * 5;
     if (env.birds > 0.5 && env.rain < 0.2) { Math.random() < 0.65 ? sfx.chirp(0.4 + Math.random() * 0.4) : sfx.gull(0.4 + Math.random() * 0.4); }
-    else if (night > 0.7 && env.rain < 0.2) sfx.cricket(0.6);
+    else if (night > 0.7 && env.rain < 0.2 && env.snow < 0.2) sfx.cricket(0.6);
   }
 }
 
@@ -576,6 +694,7 @@ if (DEV) {
       socket.volatile.emit('move', { x, z, ry: me.root.rotation.y, moving: false });
     },
     weather(k) { weather.set(k, true); setWeatherUI(); },
+    terrainHeight, heightAt, W,
     state: () => ({ joined, sitting: meditating, pos: me && me.root.position.toArray(), zone: zoneName, players: players.size, calls: renderer.info.render.calls, tris: renderer.info.render.triangles, geos: renderer.info.memory.geometries, tex: renderer.info.memory.textures }),
     act(type) { doAction(type); },
     socketDrop() { socket.io.engine.close(); },          // giả lập đứt mạng: socket.io tự nối lại

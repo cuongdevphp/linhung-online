@@ -1,11 +1,14 @@
 import { UP, POD, BELL, DRUM, inBounds, CUSHIONS, CUSHION_H } from '/shared/layout.js';
 import { stairQuery } from '/shared/stairs.js';
+import { SUMMIT_CUSHIONS } from '/shared/summit.js';
+
+const ALL_CUSHIONS = [...CUSHIONS, ...SUMMIT_CUSHIONS];       // chánh điện và thiền đài trên đỉnh
 
 /* Cao độ mặt đi được và va chạm đơn giản (hộp + trụ tròn). */
 export const STAIR_RUN = 10.5;   // đại bậc thang dài 10,5 m (21 bậc)
 
 export function heightAt(x, z) {
-  if (x < -41) { const q = stairQuery(x, z, 0.6); if (q) return q.h; }   // Đường Mây 1.080 bậc: dốc liên tục theo chặng, sân nghỉ phẳng
+  if (x < -41 || z < -76) { const q = stairQuery(x, z, 0.6); if (q) return q.h; }   // Đường Mây 1.080 bậc: dốc liên tục theo chặng, sân nghỉ phẳng; sân đỉnh và ga cáp treo
   if (z <= 0) {
     if (Math.abs(x) < 20 && z > -38 && z < -14) return POD;
     if (Math.abs(x) < 8 && z >= -14 && z < -10.5) return UP + (POD - UP) * (-10.5 - z) / 3.5;
@@ -21,12 +24,12 @@ export function heightAt(x, z) {
 /* Bồ đoàn gần nhất trong tầm 1,3 m (null nếu không có), để ngồi thiền tự vào đúng chỗ. */
 export function cushionNear(x, z) {
   let best = null, bd = 1.3;
-  for (const c of CUSHIONS) { const d = Math.hypot(x - c.x, z - c.z); if (d < bd) { bd = d; best = c; } }
+  for (const c of ALL_CUSHIONS) { const d = Math.hypot(x - c.x, z - c.z); if (d < bd) { bd = d; best = c; } }
   return best;
 }
 /* Độ nâng khi ngồi: bằng chiều cao bồ đoàn nếu đang ngồi đúng trên một chiếc. */
 export function seatLiftAt(x, z) {
-  for (const c of CUSHIONS) if (Math.hypot(x - c.x, z - c.z) < 0.5) return CUSHION_H;
+  for (const c of ALL_CUSHIONS) if (Math.hypot(x - c.x, z - c.z) < 0.5) return CUSHION_H;
   return 0;
 }
 

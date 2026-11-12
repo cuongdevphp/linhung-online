@@ -84,11 +84,11 @@ function dragonPair(parent, h, ridge, s, pearl) {
 }
 
 /* ====================== MÁI ====================== */
-export function roof(parent, { w, d, h, ridge, x = 0, y = 0, z = 0, flick = 1, s = 1, dragons = false, pearl = true, curve = 1.7 }) {
+export function roof(parent, { w, d, h, ridge, x = 0, y = 0, z = 0, flick = 1, s = 1, dragons = false, pearl = true, curve = 1.7, tile = M.ROOF }) {
   ridge = ridge ?? Math.max(0.2, w - d);
   const g = new THREE.Group(); g.position.set(x, y, z); parent.add(g);
   const { geometry, surface: S } = roofGeometry({ w, d, ridge, h, flick: flick * s, curve });
-  mesh(geometry, M.ROOF, 0, 0, 0, g);
+  mesh(geometry, tile, 0, 0, 0, g);
 
   // đường diềm mái: hai thanh ngang + hai thanh dọc
   const t = 0.34 * s;

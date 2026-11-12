@@ -79,6 +79,19 @@
   <div id="toasts" class="toasts" aria-live="polite"></div>
 </section>
 
+<div id="fortune" class="modal" hidden>
+  <form id="fortuneForm" class="modal-card" autocomplete="off">
+    <h2>Tử Vi Đường</h2>
+    <p class="lead">Nhập năm sinh dương lịch để xem lời nhắn cho ngày hôm nay.</p>
+    <div class="fz-ask">
+      <input id="fortuneYear" type="number" inputmode="numeric" min="1900" max="2100" placeholder="VD: 1990">
+      <button class="primary" type="submit">Xem tử vi</button>
+    </div>
+    <div id="fortuneResult" class="fz-result"></div>
+    <button id="fortuneClose" class="fz-close" type="button">Đóng · Esc</button>
+  </form>
+</div>
+
 <script src="/socket.io/socket.io.js"></script>
 <script type="importmap">
 { "imports": {

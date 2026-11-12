@@ -27,6 +27,17 @@ for (let i = 0; i < PILGRIM.stages; i++) {
 }
 export const SUMMIT = STAIR_LANDINGS[PILGRIM.stages];
 
+/* SÂN ĐỈNH: sân tròn rộng bán kính 36 m ngay sau sân nghỉ cuối (sân nghỉ nằm lọt ở mép nam của sân), phẳng ở cao độ đỉnh.
+ * Hai đài nhỏ nhô ra hai bên (đông: đón bình minh, tây: ngắm hoàng hôn). Chi tiết công trình ở public/js/summit.js. */
+export const PLAZA = { x: SUMMIT.x, z: SUMMIT.z - 31.6, r: 36, h: SUMMIT.h };
+export const PLAZA_DISCS = [
+  PLAZA,
+  { x: PLAZA.x + 34, z: PLAZA.z, r: 7, h: PLAZA.h },
+  { x: PLAZA.x - 34, z: PLAZA.z, r: 7, h: PLAZA.h }
+];
+/* Sân ga cáp treo chân núi, ngay phía nam sân nghỉ số 0 (ngoài tường tây sân sau). */
+export const LOWER_PAD = { x1: -57, x2: -43, z1: -65, z2: -50, h: BASE_H };
+
 /* Độ dốc trung bình của sườn núi theo hướng bắc, để địa hình được vuốt thành một mặt dốc đều dưới đường chữ chi. */
 export const RAMP_K = (SUMMIT.h - BASE_H) / (START.z - SUMMIT.z);
 
@@ -39,6 +50,8 @@ export function stairQuery(x, z, margin = 0) {
   for (const L of STAIR_LANDINGS) {
     if (Math.hypot(x - L.x, z - L.z) <= landingR + margin) return { kind: 'landing', i: L.i, h: L.h };
   }
+  for (const D of PLAZA_DISCS) if (Math.hypot(x - D.x, z - D.z) <= D.r + margin) return { kind: 'plaza', h: D.h };
+  if (x >= LOWER_PAD.x1 - margin && x <= LOWER_PAD.x2 + margin && z >= LOWER_PAD.z1 - margin && z <= LOWER_PAD.z2 + margin) return { kind: 'pad', h: LOWER_PAD.h };
   for (const g of STAIR_LEGS) {
     const dx = x - g.ax, dz = z - g.az;
     const s = dx * g.ux + dz * g.uz, c = -dx * g.uz + dz * g.ux;
@@ -55,6 +68,14 @@ export function stairDistance(x, z) {
   for (const L of STAIR_LANDINGS) {
     const k = Math.max(0, Math.hypot(x - L.x, z - L.z) - landingR);
     if (k < d) { d = k; h = L.h; }
+  }
+  for (const D of PLAZA_DISCS) {
+    const k = Math.max(0, Math.hypot(x - D.x, z - D.z) - D.r);
+    if (k < d) { d = k; h = D.h; }
+  }
+  {
+    const P = LOWER_PAD, k = Math.hypot(Math.max(P.x1 - x, 0, x - P.x2), Math.max(P.z1 - z, 0, z - P.z2));
+    if (k < d) { d = k; h = P.h; }
   }
   for (const g of STAIR_LEGS) {
     const dx = x - g.ax, dz = z - g.az;
@@ -76,6 +97,11 @@ export function stairNearest(x, z) {
     const d = Math.hypot(x - L.x, z - L.z), r = landingR + 0.4;
     if (d <= r) take(x, z); else take(L.x + (x - L.x) / d * r, L.z + (z - L.z) / d * r);
   }
+  for (const D of PLAZA_DISCS) {
+    const d = Math.hypot(x - D.x, z - D.z), r = D.r + 0.4;
+    if (d <= r) take(x, z); else take(D.x + (x - D.x) / d * r, D.z + (z - D.z) / d * r);
+  }
+  take(clamp(x, LOWER_PAD.x1 - 0.4, LOWER_PAD.x2 + 0.4), clamp(z, LOWER_PAD.z1 - 0.4, LOWER_PAD.z2 + 0.4));
   for (const g of STAIR_LEGS) {
     const dx = x - g.ax, dz = z - g.az;
     const s = clamp(dx * g.ux + dz * g.uz, -1.5, LEG + 1.5), c = clamp(-dx * g.uz + dz * g.ux, -HALF - 0.4, HALF + 0.4);
@@ -89,7 +115,7 @@ export function stairNearest(x, z) {
 /* Tiến độ hành hương: bậc đã đi qua (0..1080) và chặng (1..10) nếu đang ở trên bậc thang, ngược lại null. */
 export function stairProgress(x, z) {
   const q = stairQuery(x, z, 0.6);
-  if (!q) return null;
+  if (!q || (q.kind !== 'leg' && q.kind !== 'landing')) return null;     // sân đỉnh và sân ga cáp treo không tính bậc
   if (q.kind === 'leg') {
     const k = clamp(Math.floor(Math.max(0, q.s) / tread) + 1, 1, perStage);
     return { step: q.i * perStage + k, stage: q.i + 1, landing: false };

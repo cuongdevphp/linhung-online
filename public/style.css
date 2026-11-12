@@ -76,7 +76,7 @@ body.photo #hud,body.photo .vignette{opacity:0}
 
 .prompt{position:absolute;left:50%;bottom:132px;transform:translate(-50%,10px);opacity:0;transition:.25s;padding:9px 18px;border-radius:999px;
   background:rgba(255,238,196,.93);color:#4a2306;font-weight:600;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.3);white-space:nowrap}
-.prompt.show{opacity:1;transform:translate(-50%,0)}
+.prompt.show{opacity:1;transform:translate(-50%,0);pointer-events:auto;cursor:pointer}
 .prompt kbd{background:#4a2306;color:#ffe6ae;border:0}
 
 .actions{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);display:flex;gap:6px;padding:9px;border-radius:22px;
@@ -129,3 +129,24 @@ body.photo #hud,body.photo .vignette{opacity:0}
   .prompt{bottom:auto;top:58%}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ---------- Tử Vi Đường (bảng xem tử vi trên đỉnh Đường Mây) ---------- */
+.modal{position:fixed;inset:0;z-index:30;display:grid;place-items:center;padding:18px;background:rgba(3,12,16,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.modal[hidden]{display:none}
+.modal-card{width:min(420px,100%);max-height:92vh;overflow-y:auto;padding:26px 26px 20px;border-radius:22px;background:rgba(9,30,38,.92);border:1px solid var(--line);box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.modal-card h2{margin:0 0 6px;font-family:var(--serif);font-weight:800;font-size:28px;color:var(--gold)}
+.modal-card .lead{margin:0 0 16px;font-size:14px}
+.fz-ask{display:flex;gap:10px}
+.fz-ask input{flex:1;min-width:0;padding:13px 16px;border-radius:12px;border:1px solid var(--line);background:rgba(255,247,230,.07);outline:none;font-size:16px}
+.fz-ask input:focus{border-color:var(--gold);box-shadow:0 0 0 4px rgba(242,196,109,.15)}
+.fz-ask .primary{margin:0;width:auto;padding:0 20px;font-size:15px}
+.fz-result{margin-top:16px;font-size:14px;color:#e6dcc6}
+.fz-head{font-size:15px;margin-bottom:10px;color:#ffe6ae}
+.fz-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(242,196,109,.14)}
+.fz-row b{color:var(--gold);letter-spacing:.12em;font-weight:500}
+.fz-lucky{margin:12px 0 6px;line-height:1.6}
+.fz-lucky b{color:var(--gold)}
+.fz-advice{margin:10px 0;padding:10px 14px;border-radius:12px;background:rgba(242,196,109,.1);font-family:var(--serif);font-style:italic;line-height:1.55;color:#fff2cf}
+.fz-result small{display:block;font-size:11.5px;line-height:1.5;color:#98a395}
+.fz-close{margin-top:14px;width:100%;padding:11px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.05);cursor:pointer;font-size:14px;color:#e6dcc6}
+.fz-close:hover{background:rgba(242,196,109,.14)}

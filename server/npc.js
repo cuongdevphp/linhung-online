@@ -4,6 +4,7 @@
  * Lộ trình đi dạo đã chọn thẳng qua các khoảng trống (không đụng cột đèn, La Hán, chậu cảnh, ao sen). */
 import * as L from '../shared/layout.js';
 import { STAIR_ROUTE } from '../shared/stairs.js';
+import { SU, SUMMIT_CUSHIONS } from '../shared/summit.js';
 
 const TICK_MS = 100;
 const WALK_SPEED = 1.4;          // m/s, đi thong thả
@@ -93,6 +94,21 @@ const PILGRIMS = [
   { name: 'Anh Minh Nhật', robe: 5, at: 0.8 }
 ];
 
+/* ---- Sân đỉnh Đường Mây (xem shared/summit.js): thầy bói, người ngồi thiền, người ngắm mây, người dâng hương, người dạo ---- */
+const SUMMIT_TELLER = { name: 'Cụ Tám Tử Vi', robe: 3, u: -22.9, v: -2, ry: Math.PI / 2 };       // đứng sau bàn, quay ra phía đông
+const SUMMIT_MEDITATORS = [
+  { name: 'Thích Nguyên Từ', cushion: 0, robe: 3, monk: true },
+  { name: 'Chị Mai Thảo', cushion: 3, robe: 4 },
+  { name: 'Anh Hải Đăng', cushion: 5, robe: 2 }
+];
+const SUMMIT_VIEWERS = [
+  { name: 'Lê Bình Minh', robe: 0, u: 33.4, v: -2.8, ry: Math.PI / 2 },                           // đài đón bình minh, nhìn ra biển Đông
+  { name: 'Phạm Thu Thảo', robe: 5, u: 33.4, v: 2.4, ry: Math.PI / 2 },
+  { name: 'Chú Sáu Mây', robe: 1, u: -35.6, v: 1.2, ry: -Math.PI / 2 }                            // đài ngắm hoàng hôn, nhìn về phía tây
+];
+const SUMMIT_BOWER = { name: 'Cô Út Minh Châu', robe: 4, u: 0, v: -11.6, ry: Math.PI };           // lễ trước lư hương đồng, quay mặt về Chùa Đồng
+const SUMMIT_WALKER = { name: 'Bác Bảy Check-in', robe: 2, route: [[0, 30], [0, 6], [-9, -8], [9, -8], [0, 6]] };
+
 const rand = (a, b) => a + Math.random() * (b - a);
 const wrap = ry => ((ry % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
 
@@ -144,6 +160,24 @@ export function startNpcs(players, io, merit) {
     const p = add(pg.name, ROBE(pg.robe), PILGRIM_ROUTE[start][0], PILGRIM_ROUTE[start][1], 0);
     Object.assign(p, { route: PILGRIM_ROUTE, wi: (start + 1) % PILGRIM_ROUTE.length, pause: rand(0, 6) });
     walkers.push(p);
+  }
+
+  { // sân đỉnh Đường Mây
+    const [tx, tz] = SU(SUMMIT_TELLER.u, SUMMIT_TELLER.v);
+    add(SUMMIT_TELLER.name, ROBE(SUMMIT_TELLER.robe), tx, tz, SUMMIT_TELLER.ry);
+    for (const m of SUMMIT_MEDITATORS) {
+      const c = SUMMIT_CUSHIONS[m.cushion];
+      const p = add(m.name, ROBE(m.robe), c.x, c.z, wrap(c.ry), true);
+      if (m.monk) p.monk = true;
+    }
+    for (const v of SUMMIT_VIEWERS) { const [x, z] = SU(v.u, v.v); add(v.name, ROBE(v.robe), x, z, wrap(v.ry)); }
+    const [bx, bz] = SU(SUMMIT_BOWER.u, SUMMIT_BOWER.v);
+    const bp = add(SUMMIT_BOWER.name, ROBE(SUMMIT_BOWER.robe), bx, bz, wrap(SUMMIT_BOWER.ry));
+    bp.nextBow = Date.now() + 5000; bowers.push(bp);
+    const route = SUMMIT_WALKER.route.map(([u, v]) => SU(u, v));
+    const wp = add(SUMMIT_WALKER.name, ROBE(SUMMIT_WALKER.robe), route[0][0], route[0][1], 0);
+    Object.assign(wp, { route, wi: 1, pause: rand(0, 4) });
+    walkers.push(wp);
   }
 
   for (const w of LAY_WALKERS) {

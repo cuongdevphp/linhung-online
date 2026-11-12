@@ -5,6 +5,7 @@
  */
 
 import { stairQuery, stairNearest, GATE_CORRIDOR } from './stairs.js';
+import { SUMMIT_SPOTS } from './summit.js';
 
 export const UP = 5;        // cao độ sân trên (stairs.js dùng cùng giá trị làm chân Đường Mây)
 export const POD = 6.2;     // cao độ nền Đại Hùng Bảo Điện
@@ -69,13 +70,14 @@ export const SPOTS = [
   { type: 'bell', x: BELL.x, z: BELL.z, r: 5, text: 'thỉnh chuông' },
   { type: 'drum', x: DRUM.x, z: DRUM.z, r: 5, text: 'đánh trống' },
   { type: 'mo', x: MO_PLAYER.x, z: MO_PLAYER.z, r: 2.6, text: 'gõ mõ' },
-  { type: 'lantern', x: LAKE_SPOT.x, z: LAKE_SPOT.z, r: 4.5, text: 'thả hoa đăng' }
+  { type: 'lantern', x: LAKE_SPOT.x, z: LAKE_SPOT.z, r: 4.5, text: 'thả hoa đăng' },
+  ...SUMMIT_SPOTS                                  // sân đỉnh Đường Mây (xem summit.js)
 ];
 
-export const ACTIONS = ['bow', 'incense', 'bell', 'drum', 'mo', 'lantern'];
+export const ACTIONS = ['bow', 'incense', 'bell', 'drum', 'mo', 'lantern', 'incenseTop'];
 
 /* Thời gian chờ giữa hai lần cùng một hành động (ms), chống cày công đức. */
-export const ACTION_COOLDOWN_MS = { bow: 1200, incense: 1500, bell: 5000, drum: 2500, mo: 350, lantern: 4000, meditate: 30000 };
+export const ACTION_COOLDOWN_MS = { bow: 1200, incense: 1500, bell: 5000, drum: 2500, mo: 350, lantern: 4000, meditate: 30000, incenseTop: 1500 };
 
 /* Màu áo tràng: [mã màu, tên]. Server chỉ nhận các mã trong danh sách này. */
 export const ROBES = [
@@ -83,7 +85,7 @@ export const ROBES = [
   ['#d9a227', 'Vàng'], ['#e9e2d0', 'Trắng'], ['#b4495c', 'Hồng sen']
 ];
 
-export const WEATHER_KEYS = ['nang', 'binhminh', 'hoanghon', 'may', 'mua', 'giong', 'suong', 'dem'];
+export const WEATHER_KEYS = ['nang', 'binhminh', 'hoanghon', 'may', 'mua', 'giong', 'suong', 'dem', 'tuyet'];
 
 export const LANTERN_LIFE_MS = 5 * 60 * 1000;
 export const INCENSE_LIFE_MS = 5 * 60 * 1000;

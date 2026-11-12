@@ -10,6 +10,8 @@ import { buildHall } from './hall.js';
 import { buildKitchen } from './kitchen.js';
 import { buildDining } from './dining.js';
 import { buildPilgrimStairs } from './pilgrim.js';
+import { buildSummit } from './summit.js';
+import { buildCable } from './cable.js';
 
 const flatRot = m => { m.rotation.x = -Math.PI / 2; return m; };
 
@@ -19,7 +21,7 @@ export function buildWorld(scene) {
   setRoot(stat);
   const R = rng(2026);
   const W = { lights: [], anim: {}, spots: SPOTS, flagSpots: [], incense: null, smokeOrigin: null };
-  W.lanterns = createLanternField(scene, 140);
+  W.lanterns = createLanternField(scene, 200);
   W.lanternAt = (parent, x, y, z, s = 1) => { const v = new THREE.Vector3(x, y, z); parent.localToWorld(v); W.lanterns.add(v.x, v.y, v.z, s); };
   W.light = (parent, x, y, z, color, dist, decay, base, always = 0) => {
     const l = new THREE.PointLight(color, 0, dist, decay); l.position.set(x, y, z);
@@ -282,6 +284,8 @@ export function buildWorld(scene) {
   buildKitchen(stat, W);
   buildDining(stat, W);
   buildPilgrimStairs(stat, W);                           // Đường Mây 1.080 bậc phía sau, bên tây
+  buildSummit(stat, W);                                  // sân đỉnh: Chùa Đồng, tượng, thiền đài, tử vi, hai đài ngắm mây, check-in
+  buildCable(stat, W);                                   // cáp treo từ đỉnh xuống chân núi
 
   // dãy nhà Tổ - giảng đường phía sau chánh điện
   {
