@@ -58,8 +58,9 @@
     </div>
     <button id="soundBtn" class="chip icon-btn" type="button" title="Âm thanh">🔊</button>
   </div>
-  <div id="prompt" class="prompt"></div>
-  <div class="actions">
+  <div id="dock" class="dock">
+  <button id="prompt" class="prompt" type="button" aria-live="polite"></button>
+  <div id="actions" class="actions">
     <button type="button" class="act" data-act="bow"><span class="ico">🙏</span><span class="lbl">Lễ Phật</span><kbd>B</kbd></button>
     <button type="button" class="act" data-act="meditate"><span class="ico">🧘</span><span class="lbl">Ngồi thiền</span><kbd>T</kbd></button>
     <button type="button" class="act" data-act="incense"><span class="ico">🪔</span><span class="lbl">Thắp nhang</span><kbd>E</kbd></button>
@@ -67,6 +68,8 @@
     <button type="button" class="act" data-act="drum"><span class="ico">🥁</span><span class="lbl">Đánh trống</span><kbd>E</kbd></button>
     <button type="button" class="act" data-act="mo"><span class="ico">🪵</span><span class="lbl">Gõ mõ</span><kbd>E</kbd></button>
     <button type="button" class="act" data-act="lantern"><span class="ico">🏮</span><span class="lbl">Hoa đăng</span><kbd>E</kbd></button>
+  </div>
+  <button id="actToggle" class="fab" type="button" aria-expanded="false" aria-controls="actions"><span class="ico">🙏</span><span class="lbl">Thao tác</span><i class="caret">▴</i></button>
   </div>
   <div class="chat">
     <div id="messages" class="messages"></div>

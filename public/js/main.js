@@ -219,6 +219,7 @@ socket.on('init', d => {
     $('#hud').hidden = false;
     addMsg(null, 'Nam mô A Di Đà Phật 🙏 Chúc bạn một ngày an lạc.');
     setTimeout(() => toast('Đi thẳng lên <b>đại bậc thang</b> để vào Chánh điện, rẽ phải để ngắm <b>Phật Bà Quán Thế Âm</b>'), 1500);
+    setTimeout(() => toast('Bấm nút <b>🙏 Thao tác</b> để lễ Phật, ngồi thiền. Đứng gần chỗ tương tác sẽ có nút to hiện ra'), 5000);
   }
 });
 socket.on('joined', createPlayer);
@@ -312,7 +313,7 @@ function setSitting(on) {
       p.x = c.x; p.z = c.z; me.targetRy = ry;
       socket.volatile.emit('move', { x: p.x, z: p.z, ry, moving: false });
     }
-    if (!hintedSit) { hintedSit = true; toast('Nhấn <b>T</b>, bấm nút <b>Đứng dậy</b> hoặc bước đi để xả thiền'); }
+    if (!hintedSit) { hintedSit = true; toast(isTouch ? 'Bấm <b>Thao tác → Đứng dậy</b> hoặc bước đi để xả thiền' : 'Nhấn <b>T</b>, bấm nút <b>Đứng dậy</b> hoặc bước đi để xả thiền'); }
   }
 }
 
@@ -341,7 +342,7 @@ function doPhoto() {
   const on = !document.body.classList.contains('photo');
   document.body.classList.toggle('photo', on);
   clearTimeout(photoTimer);
-  if (on) photoTimer = setTimeout(() => { document.body.classList.remove('photo'); toast('📸 Check-in xong! Nhấn <b>H</b> bất cứ lúc nào để ẩn giao diện chụp ảnh'); }, 10000);
+  if (on) photoTimer = setTimeout(() => { document.body.classList.remove('photo'); toast(isTouch ? '📸 Check-in xong! Chạm vào màn hình khi đang chụp để hiện lại giao diện sớm hơn' : '📸 Check-in xong! Nhấn <b>H</b> bất cứ lúc nào để ẩn giao diện chụp ảnh'); }, 10000);
 }
 function doCable() {
   if (me.ride) return;
@@ -388,8 +389,21 @@ function doAction(type) {
   if (type !== 'bow') setSitting(false);                 // đứng dậy trước khi đánh chuông, trống, thắp nhang…
   socket.emit('action', { type });
 }
-document.querySelectorAll('.act').forEach(b => b.addEventListener('click', () => doAction(b.dataset.act)));
-$('#prompt').addEventListener('click', () => { if (nearSpot) doAction(nearSpot.type); });   // chạm vào gợi ý để tương tác (điện thoại không có phím E)
+const SPOT_ICON = {
+  incense: '🪔', bell: '🔔', drum: '🥁', mo: '🪵', lantern: '🏮', incenseTop: '🪔',
+  fortune: '🔮', meditate: '🧘', view: '🌄', photo: '📸', cable: '🚡'
+};
+
+/* Hàng nút thao tác (lễ Phật, ngồi thiền, thắp nhang…) thu gọn sau nút "Thao tác", bấm vào mới mở ra; làm xong thì tự thu lại. */
+const dock = $('#dock');
+function setDock(open) {
+  dock.classList.toggle('open', open);
+  $('#actToggle').setAttribute('aria-expanded', String(open));
+  $('#actToggle .lbl').textContent = open ? 'Thu gọn' : 'Thao tác';
+}
+$('#actToggle').addEventListener('click', () => setDock(!dock.classList.contains('open')));
+document.querySelectorAll('.act').forEach(b => b.addEventListener('click', () => { doAction(b.dataset.act); setDock(false); }));
+$('#prompt').addEventListener('click', () => { if (nearSpot) doAction(nearSpot.type); });   // nút ngữ cảnh: thay phím E, dùng được trên điện thoại
 
 addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT') { if (e.key === 'Escape') { e.target.blur(); closeFortune(); } return; }
@@ -417,7 +431,8 @@ $('#chatForm').addEventListener('submit', e => {
 const pointers = new Map(); let pinch = 0;
 canvas.addEventListener('pointerdown', e => {
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  canvas.setPointerCapture(e.pointerId); $('#weatherMenu').hidden = true;
+  canvas.setPointerCapture(e.pointerId); $('#weatherMenu').hidden = true; setDock(false);
+  if (isTouch && document.body.classList.contains('photo')) { clearTimeout(photoTimer); document.body.classList.remove('photo'); }   // chạm màn hình để thoát chế độ chụp ảnh
   if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinch = Math.hypot(a.x - b.x, a.y - b.y); }
 });
 canvas.addEventListener('pointermove', e => {
@@ -521,7 +536,13 @@ function update(dt, t) {
 
     nearSpot = me.ride ? null : W.spots.find(s => Math.hypot(p.x - s.x, p.z - s.z) < s.r) || null;
     const pr = $('#prompt');
-    if (nearSpot) { pr.innerHTML = `Nhấn <kbd>E</kbd> để ${esc(nearSpot.text)}`; pr.classList.add('show'); } else pr.classList.remove('show');
+    if (nearSpot) {
+      // nút ngữ cảnh thay cho phím E: hiện biểu tượng + việc có thể làm tại chỗ đang đứng
+      const label = nearSpot.type === 'meditate' && meditating ? 'Đứng dậy' : nearSpot.text.charAt(0).toUpperCase() + nearSpot.text.slice(1);
+      const html = `<span class="ico">${SPOT_ICON[nearSpot.type] || '✨'}</span><span>${esc(label)}</span>${isTouch ? '' : '<kbd>E</kbd>'}`;
+      if (pr.dataset.k !== html) { pr.innerHTML = html; pr.dataset.k = html; }
+      pr.classList.add('show');
+    } else pr.classList.remove('show');
     const inHall = inHallAt(p.x, p.z), nearStatue = Math.hypot(p.x - STATUE.x, p.z - STATUE.z) < 34;
     document.querySelectorAll('.act').forEach(b => {
       const a = b.dataset.act, always = a === 'bow' || a === 'meditate';   // luôn dùng được ở mọi nơi trong chùa
@@ -543,7 +564,7 @@ function update(dt, t) {
       }
       if (z.name === 'Đại Hùng Bảo Điện' && !hintedHall) {
         hintedHall = true;
-        setTimeout(() => toast('Nhấn <b>T</b> để ngồi thiền trên bồ đoàn'), 1200);
+        setTimeout(() => toast(isTouch ? 'Bấm <b>Thao tác → Ngồi thiền</b> để ngồi thiền trên bồ đoàn' : 'Nhấn <b>T</b> để ngồi thiền trên bồ đoàn'), 1200);
       }
     }
 

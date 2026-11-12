@@ -74,13 +74,27 @@ body.photo #hud,body.photo .vignette{opacity:0}
 .wopt:hover{background:rgba(242,196,109,.15)}
 .wopt.on{border-color:var(--gold);background:rgba(242,196,109,.2)}
 
-.prompt{position:absolute;left:50%;bottom:132px;transform:translate(-50%,10px);opacity:0;transition:.25s;padding:9px 18px;border-radius:999px;
-  background:rgba(255,238,196,.93);color:#4a2306;font-weight:600;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.3);white-space:nowrap}
-.prompt.show{opacity:1;transform:translate(-50%,0);pointer-events:auto;cursor:pointer}
+/* Cụm thao tác: nút ngữ cảnh (thay phím E) hiện khi đứng gần chỗ tương tác, hàng nút thao tác thu gọn sau nút "Thao tác" */
+.dock{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:10px;pointer-events:none}
+.dock>*{pointer-events:auto}
+.prompt{display:none;align-items:center;gap:10px;padding:13px 24px;border:0;border-radius:999px;cursor:pointer;font-size:16px;font-weight:700;white-space:nowrap;color:#3a1d04;
+  background:linear-gradient(180deg,#ffe6aa,#f2b957 60%,#d98f2a);box-shadow:0 10px 30px rgba(240,170,70,.45),inset 0 1px 0 #fff6;animation:pop .25s ease}
+.prompt.show{display:flex}
+.prompt .ico{font-size:22px}
+.prompt:active{transform:scale(.97)}
 .prompt kbd{background:#4a2306;color:#ffe6ae;border:0}
+@keyframes pop{from{opacity:0;transform:translateY(8px) scale(.92)}}
 
-.actions{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);display:flex;gap:6px;padding:9px;border-radius:22px;
-  background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);pointer-events:auto}
+.actions{display:none;gap:6px;padding:9px;border-radius:22px;
+  background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.dock.open .actions{display:flex;animation:pop .22s ease}
+.fab{display:flex;align-items:center;gap:8px;padding:10px 18px;border-radius:999px;border:1px solid var(--line);cursor:pointer;font-size:14px;color:#f6ead0;
+  background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 8px 30px rgba(0,0,0,.3);transition:.2s}
+.fab:hover{background:rgba(242,196,109,.16)}
+.fab .ico{font-size:22px}
+.fab .caret{font-style:normal;color:var(--gold);transition:transform .2s}
+.dock.open .fab{border-color:var(--gold);box-shadow:0 0 22px rgba(242,196,109,.3)}
+.dock.open .fab .caret{transform:rotate(180deg)}
 .act{position:relative;width:74px;padding:10px 4px 8px;border-radius:16px;border:1px solid transparent;background:rgba(255,255,255,.04);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:.2s}
 .act .ico{font-size:23px;transition:.2s}
 .act .lbl{font-size:11.5px;color:#e6dcc6;white-space:nowrap}
@@ -122,11 +136,13 @@ body.photo #hud,body.photo .vignette{opacity:0}
   .top-right{top:12px;right:12px;flex-direction:column;align-items:flex-end;gap:6px}
   .stat{padding:7px 12px;font-size:12px}.icon-btn{width:36px;height:36px}
   .wmenu{right:110%;top:0}
-  .actions{left:auto;right:12px;bottom:16px;transform:none;display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:6px}
+  .dock{left:auto;right:12px;bottom:16px;transform:none;align-items:flex-end}
+  .dock.open .actions{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:6px}
   .act{width:58px;padding:7px 2px 5px}.act .ico{font-size:20px}.act .lbl{font-size:9.5px}.act kbd{display:none}
+  .prompt{padding:13px 20px;font-size:15px;max-width:calc(100vw - 150px);white-space:normal;text-align:left}
+  .fab{padding:10px 14px}.fab .lbl{font-size:13px}
   .chat{left:12px;right:150px;width:auto;bottom:auto;top:66px}
   .messages{max-height:100px}
-  .prompt{bottom:auto;top:58%}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 

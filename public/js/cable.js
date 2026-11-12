@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { PLAZA, LOWER_PAD } from '/shared/stairs.js';
+import { PLAZA, LOWER_PAD, stairDistance } from '/shared/stairs.js';
 import { CABLE } from '/shared/summit.js';
 import { mesh, box, cyl, sph, span, textPlate, mat, clamp, lerp } from './util.js';
 import { M } from './materials.js';
@@ -12,10 +12,11 @@ import { terrainHeight } from './terrain.js';
    làn lên (đông) có các cabin rỗng chạy vòng cho cảnh sống động. Cabin của người chơi chỉ tồn tại trong chuyến đi và chạy theo giờ server
    (xem 'ride' trong server/index.js và main.js), nên ai nhìn cũng thấy cùng một chuyến.
    ===================================================================== */
-const N = 9;                                   // số đoạn dây (N-1 cột trụ ở giữa)
+const N0 = 9;                                  // số cột trụ dự kiến là N0-1; cột nào không có chỗ trống (cách bậc thang đủ xa) thì bỏ, nhịp dây dài hơn
 const LANE_DOWN = -2.4, LANE_UP = 2.4;         // độ lệch ngang (m, +: phía đông) của hai làn so với trục tim
 const AMBIENT = 3;                             // số cabin rỗng chạy lên
 const CLEAR = 10;                              // dây cao hơn mặt đất ít nhất bấy nhiêu mét
+const TOWER_GAP = 8;                           // cột trụ cách mép bậc thang / sân nghỉ ít nhất bấy nhiêu mét
 
 export function buildCable(scene, W) {
   const A = CABLE.top, B = CABLE.bottom;
@@ -23,9 +24,25 @@ export function buildCable(scene, W) {
   const ex = dirz, ez = -dirx;                                          // hướng ngang +: phía đông khi dây chạy về nam
   const heading = Math.atan2(dirx, dirz);
   const nx = [], nz = [], ny = [];
-  for (let i = 0; i <= N; i++) { nx.push(A.x + dx * i / N); nz.push(A.z + dz * i / N); }
+  /* Vị trí cột trụ: chia đều dọc đường cáp rồi dịch dọc theo dây đến chỗ gần nhất cách bậc thang / sân nghỉ / lan can và đèn đá
+   * ít nhất TOWER_GAP mét (kiểm cả hai làn dây), để không cột nào đứng trên lối đi của Đường Mây. nf[i] là vị trí nút i (0..1) dọc đường cáp. */
+  const clearAt = f => {
+    const x = A.x + dx * f, z = A.z + dz * f;
+    return Math.min(stairDistance(x, z).d, stairDistance(x + ex * LANE_UP, z + ez * LANE_UP).d, stairDistance(x - ex * LANE_UP, z - ez * LANE_UP).d);
+  };
+  const nf = [0];
+  for (let i = 1; i < N0; i++) {
+    const base = i / N0;
+    for (let off = 0; off <= 0.06; off += 0.001) {
+      const f = (off === 0 ? [base] : [base + off, base - off]).find(f => f > nf[nf.length - 1] + 0.04 && f < 0.95 && clearAt(f) >= TOWER_GAP);
+      if (f !== undefined) { nf.push(f); break; }
+    }
+  }
+  nf.push(1);
+  const N = nf.length - 1;                                              // số đoạn dây thực tế
+  for (let i = 0; i <= N; i++) { nx.push(A.x + dx * nf[i]); nz.push(A.z + dz * nf[i]); }
   const y0 = PLAZA.h + CABLE.cabinH + 0.3, yN = LOWER_PAD.h + CABLE.cabinH + 0.3;
-  for (let i = 0; i <= N; i++) ny.push(i === 0 ? y0 : i === N ? yN : Math.max(lerp(y0, yN, i / N), terrainHeight(nx[i], nz[i]) + 18));
+  for (let i = 0; i <= N; i++) ny.push(i === 0 ? y0 : i === N ? yN : Math.max(lerp(y0, yN, nf[i]), terrainHeight(nx[i], nz[i]) + 18));
   // nâng cột nếu giữa hai cột dây sát mặt đất hơn CLEAR
   let minClear = Infinity;
   for (let pass = 0; pass < 4; pass++) {
@@ -115,7 +132,9 @@ export function buildCable(scene, W) {
   };
   /* Đặt obj (cabin hoặc người ngồi trong cabin) tại vị trí u (0..1) dọc làn lane; trả về cao độ sàn. */
   const place = (obj, u, lane, t = 0, sway = true) => {
-    const s = clamp(u, 0, 1) * N, i = Math.min(N - 1, Math.floor(s)), f = s - i;
+    const uu = clamp(u, 0, 1);
+    let i = 0; while (i < N - 1 && uu > nf[i + 1]) i++;
+    const f = (uu - nf[i]) / (nf[i + 1] - nf[i]);
     const x = lerp(nx[i], nx[i + 1], f) + ex * lane, z = lerp(nz[i], nz[i + 1], f) + ez * lane;
     const y = lerp(ny[i], ny[i + 1], f) - CABLE.cabinH;
     obj.position.set(x, y, z); obj.rotation.y = heading;
