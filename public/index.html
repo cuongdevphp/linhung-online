@@ -18,6 +18,7 @@
 <div id="loading"><div class="lotus-spin">🪷</div><span>Đang mở cổng chùa…</span></div>
 
 <section id="join">
+  <div class="preview-stage" aria-hidden="true"><canvas id="preview"></canvas></div>
   <form id="joinForm" class="join-card">
     <div class="eyebrow">Sơn Trà · Bãi Bụt · Đà Nẵng</div>
     <h1>Linh Ứng <em>Online</em></h1>
@@ -26,6 +27,13 @@
       <span>Pháp danh của bạn</span>
       <input id="name" maxlength="20" placeholder="VD: Tâm An" autocomplete="off" required>
     </label>
+    <div class="field">
+      <span>Bạn là</span>
+      <div class="genders" id="genders">
+        <button type="button" class="gender on" data-g="nam"><i>👦</i><b>Nam</b></button>
+        <button type="button" class="gender" data-g="nu"><i>👧</i><b>Nữ</b></button>
+      </div>
+    </div>
     <div class="field">
       <span>Màu áo tràng</span>
       <div id="robes" class="robes"></div>

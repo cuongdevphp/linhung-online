@@ -110,6 +110,10 @@ const SUMMIT_VIEWERS = [
 const SUMMIT_BOWER = { name: 'Cô Út Minh Châu', robe: 4, u: 0, v: -11.6, ry: Math.PI };           // lễ trước lư hương đồng, quay mặt về Chùa Đồng
 const SUMMIT_WALKER = { name: 'Bác Bảy Check-in', robe: 2, route: [[0, 30], [0, 6], [-9, -8], [9, -8], [0, 6]] };
 
+/* Giới tính của Phật tử ảo suy ra từ cách xưng hô / tên đệm (Chị, Cô, Dì, Thu, Lan, Mai…), chư Tăng ('monk') vẫn dùng dáng áo tràng ở client. */
+const FEMALE_WORDS = new Set(['Chị', 'Cô', 'Dì', 'Thu', 'Lan', 'Mai', 'Hương', 'Phương', 'Châu', 'Thảo', 'Diệp', 'Hiền', 'Hạnh', 'Diệu', 'Hà', 'Anh Thư']);
+const genderOf = name => name.split(/\s+/).some(w => FEMALE_WORDS.has(w)) ? 'nu' : 'nam';
+
 const rand = (a, b) => a + Math.random() * (b - a);
 const wrap = ry => ((ry % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
 
@@ -118,7 +122,7 @@ export function startNpcs(players, io, merit) {
   let n = 0;
   const add = (name, color, x, z, ry, sitting = false) => {
     const id = 'npc-' + (++n);
-    const p = { id, name, color, x, z, ry, moving: false, sitting, lastMove: Date.now(), npc: true };
+    const p = { id, name, color, gender: genderOf(name), x, z, ry, moving: false, sitting, lastMove: Date.now(), npc: true };
     players.set(id, p);
     return p;
   };

@@ -18,6 +18,8 @@ import { attachWork, updateWork } from './work.js';
 import { lerpAngle, makeLabel, clamp } from './util.js';
 import { M } from './materials.js';
 import { STATUE_MATS } from './statues.js';
+import { looksFor } from './avatar.js';
+import { createPreview } from './preview.js';
 
 const $ = s => document.querySelector(s);
 const isTouch = matchMedia('(pointer:coarse)').matches;
@@ -80,7 +82,10 @@ let selfId = null, me = null;
 function createPlayer(p) {
   if (players.has(p.id)) return players.get(p.id);
   let hash = 0; for (const ch of p.name) hash = (hash * 31 + ch.charCodeAt(0)) | 0;
-  const h = makeHuman({ robe: p.color, hair: hash & 1 ? 'bun' : 'short', skinTone: Math.abs(hash) % 4, shaved: !!p.monk });
+  const gender = p.gender === 'nu' ? 'female' : p.gender === 'nam' ? 'male' : null;     // chư Tăng (monk) giữ dáng áo tràng cổ điển
+  const h = gender && !p.monk
+    ? makeHuman({ gender, robe: p.color, ...looksFor(p.name, gender) })
+    : makeHuman({ robe: p.color, hair: hash & 1 ? 'bun' : 'short', skinTone: Math.abs(hash) % 4, shaved: !!p.monk });
   h.root.position.set(p.x, heightAt(p.x, p.z), p.z); h.root.rotation.y = p.ry;
   const label = makeLabel(p.name); label.position.y = h.height + 0.1; h.root.add(label);
   scene.add(h.root);
@@ -160,14 +165,30 @@ function showBubble(o, text) {
 
 /* ====================== GIAO DIỆN ====================== */
 let robe = ROBES[0][0];
+let gender = 'nam';                                       // 'nam' | 'nu', chọn ở màn hình vào chùa
+try { if (localStorage.getItem('linhung-gender') === 'nu') gender = 'nu'; } catch { /* chế độ riêng tư */ }
+let preview = null;
+try { preview = createPreview($('#preview')); } catch (e) { console.warn('Không dựng được khung xem trước nhân vật', e); }
+const previewSet = () => preview?.set({ gender: gender === 'nu' ? 'female' : 'male', robe, name: $('#name').value.trim() });
+document.querySelectorAll('.gender').forEach(b => {
+  b.classList.toggle('on', b.dataset.g === gender);
+  b.addEventListener('click', () => {
+    gender = b.dataset.g;
+    document.querySelectorAll('.gender').forEach(x => x.classList.toggle('on', x === b));
+    try { localStorage.setItem('linhung-gender', gender); } catch { /* bỏ qua */ }
+    previewSet();
+  });
+});
 ROBES.forEach(([c, n], i) => {
   const b = document.createElement('button'); b.type = 'button'; b.className = 'robe' + (i ? '' : ' on');
   const dot = document.createElement('i'); dot.style.background = c;
   b.append(dot, n);
-  b.addEventListener('click', () => { robe = c; document.querySelectorAll('.robe').forEach(x => x.classList.remove('on')); b.classList.add('on'); });
+  b.addEventListener('click', () => { robe = c; document.querySelectorAll('.robe').forEach(x => x.classList.remove('on')); b.classList.add('on'); previewSet(); });
   $('#robes').appendChild(b);
 });
 try { $('#name').value = localStorage.getItem('linhung-name') || ''; } catch { /* chế độ riêng tư */ }
+$('#name').addEventListener('input', previewSet);
+previewSet();
 
 function toast(html) {
   const t = document.createElement('div'); t.className = 'toast'; t.innerHTML = html; $('#toasts').appendChild(t);
@@ -217,7 +238,7 @@ socket.on('hello', d => {
 socket.on('connect', () => {
   if (!joined) return;                                   // nối lại sau khi mất mạng: vào lại đúng chỗ cũ
   const p = me?.root.position;
-  socket.emit('join', { name: myName, color: robe, x: p?.x, z: p?.z, ry: me?.root.rotation.y });
+  socket.emit('join', { name: myName, color: robe, gender, x: p?.x, z: p?.z, ry: me?.root.rotation.y });
 });
 
 function showJoinMsg(text) {
@@ -233,7 +254,7 @@ $('#joinForm').addEventListener('submit', e => {
   try { localStorage.setItem('linhung-name', name); } catch { /* bỏ qua */ }
   sfx.init(); templeMusic.init(); sfx.chime(0.6);
   joining = true;
-  socket.emit('join', { name, color: robe });
+  socket.emit('join', { name, color: robe, gender });
 });
 socket.on('full', () => { joining = false; showJoinMsg('Chùa đang quá đông, xin thử lại sau ít phút.'); });
 
@@ -251,7 +272,7 @@ socket.on('init', d => {
   meditating = false; updateSitUI();                      // vào lại thì đứng dậy (server cấp người chơi mới)
   joined = true; joining = false;
   if (first) {
-    $('#join').classList.add('leaving'); setTimeout(() => $('#join').remove(), 900);
+    $('#join').classList.add('leaving'); setTimeout(() => { preview?.stop(); $('#join').remove(); }, 900);
     $('#hud').hidden = false;
     addMsg(null, 'Nam mô A Di Đà Phật 🙏 Chúc bạn một ngày an lạc.');
     setTimeout(() => toast('Đi thẳng lên <b>đại bậc thang</b> để vào Chánh điện, rẽ phải để ngắm <b>Phật Bà Quán Thế Âm</b>'), 1500);

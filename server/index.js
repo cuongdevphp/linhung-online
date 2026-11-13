@@ -91,7 +91,7 @@ function bucket(rate, burst) {
   };
 }
 
-const pub = p => ({ id: p.id, name: p.name, color: p.color, x: p.x, z: p.z, ry: p.ry, moving: p.moving, sitting: p.sitting, act: p.act, monk: p.monk, ride: p.ride && !p.ride.waiting ? p.ride : undefined });
+const pub = p => ({ id: p.id, name: p.name, color: p.color, gender: p.gender, x: p.x, z: p.z, ry: p.ry, moving: p.moving, sitting: p.sitting, act: p.act, monk: p.monk, ride: p.ride && !p.ride.waiting ? p.ride : undefined });
 
 /* Ngày hiện tại theo giờ Việt Nam (UTC+7), dạng YYYY-MM-DD, làm hạt giống cho kết quả tử vi trong ngày. */
 const vnDay = () => new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10);
@@ -193,7 +193,8 @@ io.on('connection', socket => {
       const [cx, cz] = L.clampToBounds(d.x, d.z);
       sp = { x: cx, z: cz, ry: Number.isFinite(d.ry) ? d.ry : sp.ry };
     }
-    const p = { id: socket.id, name, color, x: sp.x, z: sp.z, ry: sp.ry, moving: false, sitting: false, lastMove: Date.now() };
+    const gender = d && d.gender === 'nu' ? 'nu' : 'nam';
+    const p = { id: socket.id, name, color, gender, x: sp.x, z: sp.z, ry: sp.ry, moving: false, sitting: false, lastMove: Date.now() };
     players.set(socket.id, p);
     prune();
     socket.emit('init', { selfId: socket.id, now: Date.now(), players: [...players.values()].map(pub), incense, cabin: cabinPublic() });

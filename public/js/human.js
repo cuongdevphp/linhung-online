@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { span, clamp } from './util.js';
+import { makeCuteHuman } from './avatar.js';
 
 /* =====================================================================
-   NHÂN VẬT
+   NHÂN VẬT (kiểu áo tràng cổ điển: chư Tăng, chú tiểu). Người chơi và Phật tử có giới tính (o.gender) dùng nhân vật dễ thương ở avatar.js.
    - Hệ toạ độ: gốc `root` ở mặt đất, mặt quay về +z.
    - `upper` có gốc tại hông; vai ở (±0.19, 0.49, 0); chân cổ ở (0, 0.55, 0).
      Mọi mục tiêu IK của tay (reach) tính trong không gian `upper`.
@@ -76,6 +77,7 @@ const UP = new THREE.Vector3(0, 1, 0);
 const A1 = 0.29, A2 = 0.27;     // chiều dài cánh tay trên, cẳng tay
 
 export function makeHuman(o = {}) {
+  if (o.gender && !o.shaved && !o.seated) return makeCuteHuman(o);     // nam / nữ dễ thương; chư Tăng và chú tiểu giữ dáng áo tràng
   buildShared();
   const seed = Math.random() * 100;
   const skin = skinMat(o.skinTone ?? 0);
