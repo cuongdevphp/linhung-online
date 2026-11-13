@@ -7,6 +7,7 @@ import { M } from './materials.js';
 import { roof, column } from './parts.js';
 import { blockBox, blockCircle } from './collision.js';
 import { buildQuanAm, makeBuddha } from './statues.js';
+import { buildTuVi } from './tuvi.js';
 
 /* =====================================================================
    SÂN ĐỈNH ĐƯỜNG MÂY — sân tròn rộng 36 m trên đỉnh núi, phía sau 1.080 bậc.
@@ -170,20 +171,21 @@ export function buildSummit(scene, W) {
   cyl(PLAZA.r + 0.4, PLAZA.r + 0.9, 4, M.STONE, 0, -2, 0, g, 96);
   cyl(PLAZA.r - 0.2, PLAZA.r - 0.2, 0.1, M.PAVE, 0, 0, 0, g, 96, false);
   for (const D of PLAZA_DISCS.slice(1)) {
-    const u = D.x - PLAZA.x;
-    cyl(D.r + 0.4, D.r + 0.8, 4, M.STONE, u, -2, 0, g, 40);
-    cyl(D.r - 0.1, D.r - 0.1, 0.09, M.WOOD, u, 0.045, 0, g, 40, false);                      // sàn gỗ của đài
+    const u = D.x - PLAZA.x, v = D.z - PLAZA.z;
+    cyl(D.r + 0.4, D.r + 0.8, 4, M.STONE, u, -2, v, g, 40);
+    cyl(D.r - 0.1, D.r - 0.1, 0.09, M.WOOD, u, 0.045, v, g, 40, false);                      // sàn gỗ của đài
   }
   const mandalaMat = new THREE.MeshStandardMaterial({ map: mandalaTex(), roughness: 0.85, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   const mandala = new THREE.Mesh(new THREE.CircleGeometry(9, 72), mandalaMat);
   mandala.rotation.x = -Math.PI / 2; mandala.position.set(0, 0.07, 2); mandala.receiveShadow = true; g.add(mandala);
 
   /* lan can vòng quanh sân, chừa lối vào phía nam, hai đài, và chỗ cabin cáp treo ra khỏi sân */
-  const GAPS = [[Math.PI / 2, 0.33], [0, 0.2], [Math.PI, 0.2], [Math.atan2(28.5, -22), 0.2]];
+  const WEST = PLAZA_DISCS[2], wu = WEST.x - PLAZA.x, wv = WEST.z - PLAZA.z, wAng = Math.atan2(wv, wu);   // đài hoàng hôn ở tây bắc
+  const GAPS = [[Math.PI / 2, 0.33], [0, 0.2], [wAng, 0.22], [Math.atan2(28.5, -22), 0.2]];
   const inGap = a => { a = ((a % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2); return GAPS.some(([c, w]) => { const d = Math.abs(((a - c + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI); return d < w; }); };
   railArc(g, 0, 0, PLAZA.r - 0.4, 0, Math.PI * 2, (x, z, a) => !inGap(a));
   railArc(g, 34, 0, 6.8, -Math.PI / 2, Math.PI / 2, (x, z) => Math.hypot(x, z) > 36.6);
-  railArc(g, -34, 0, 6.8, Math.PI / 2, Math.PI * 1.5, (x, z) => Math.hypot(x, z) > 36.6);
+  railArc(g, wu, wv, 6.8, wAng - Math.PI / 2, wAng + Math.PI / 2, (x, z) => Math.hypot(x, z) > 36.6);
 
   /* ---------- đèn đá dọc lối giữa ---------- */
   for (const v of [14, 4, -6]) for (const su of [-1, 1]) {
@@ -323,30 +325,6 @@ export function buildSummit(scene, W) {
     for (const a of [0.3, 2.4, 4.0]) { const x = u + Math.cos(a) * 8.2, z = v + Math.sin(a) * 8.2; cyl(0.14, 0.18, 2.1, M.STONE, x, 1.1, z, g, 8); sph(0.32, M.LANTERN, x, 2.5, z, g, false, 12, 10).scale.y = 1.25; bc(x, z, 0.4); }
   }
 
-  /* ---------- Tử Vi Đường ---------- */
-  {
-    const [cu, cv] = [-22, -2];
-    const tv = new THREE.Group(); tv.position.set(cu, 0, cv); tv.rotation.y = Math.PI / 2; g.add(tv);       // mặt trước quay về phía đông
-    box(7.2, 0.4, 6.4, M.STONE, 0, 0.2, 0, tv);
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) column(tv, sx * 3.2, 0.4, sz * 2.7, 3.6, 0.28);
-    box(6.6, 3.0, 0.3, M.WOOD, 0, 2.0, -2.85, tv);
-    box(5.8, 2.2, 0.1, M.LATTICE, 0, 2.1, -2.68, tv);
-    for (const sx of [-1, 1]) box(0.25, 1.1, 5.4, M.WOOD, sx * 3.2, 0.95, 0, tv);                          // lan can thấp hai hông
-    roof(tv, { w: 8.8, d: 7.6, h: 2.0, y: 4.0, s: 0.7, ridge: 4.2 });
-    const bagua = new THREE.Mesh(new THREE.CircleGeometry(1.0, 32), new THREE.MeshStandardMaterial({ map: baguaTex(), roughness: 0.6, emissive: 0xffffff, emissiveIntensity: 0.15 }));
-    bagua.position.set(0, 2.5, -2.6); tv.add(bagua);
-    textPlate('TỬ VI ĐƯỜNG', 3.6, 0.7, 0, 3.55, 3.2, tv, 0, { size: 0.5 });
-    box(3.2, 0.85, 1.2, M.WOOD, 0, 0.82, 0.5, tv); box(3.3, 0.04, 1.3, M.RED2, 0, 1.27, 0.5, tv, false);       // bàn phủ khăn đỏ
-    cyl(0.12, 0.12, 0.34, mat('bamboo', 0xc9a85a, { roughness: 0.55 }), -0.9, 1.46, 0.35, tv, 10, false);       // ống xăm
-    for (let i = 0; i < 7; i++) cyl(0.012, 0.012, 0.5, M.WOOD, -0.9 + (i - 3) * 0.02, 1.8, 0.35, tv, 4, false);
-    for (let i = 0; i < 3; i++) cyl(0.11, 0.11, 0.025, M.GOLD, 0.2 + i * 0.28, 1.3, 0.42, tv, 12, false);        // mấy đồng xu
-    for (const sx of [-1, 1]) { cyl(0.05, 0.05, 0.3, M.CANDLE, 1.2 * sx, 1.43, 0.8, tv, 8, false); sph(0.07, M.PEARL, 1.2 * sx, 1.64, 0.8, tv, false, 6, 4); }
-    tv.updateWorldMatrix(true, false);
-    for (const [lx, lz] of [[-3.3, 2.8], [3.3, 2.8], [-3.3, -2.8], [3.3, -2.8]]) W.lanternAt(tv, lx, 3.5, lz, 0.7);
-    W.light(tv, 0, 3, 0.5, 0xff9a50, 14, 1.8, 6, 1.0);
-    bb(cu - 3.6, cu + 3.6, cv - 3.4, cv + 3.4);
-  }
-
   /* ---------- Đài đón bình minh (đông) và Đài ngắm hoàng hôn (tây) ---------- */
   {
     const e = new THREE.Group(); e.position.set(36.6, 0, 0); g.add(e); e.updateWorldMatrix(true, false);      // đình săn mây trên đài đông
@@ -356,8 +334,9 @@ export function buildSummit(scene, W) {
     textPlate('ĐÀI ĐÓN BÌNH MINH', 2.6, 0.5, -2.2, 2.55, 0, e, -Math.PI / 2, { size: 0.42 });
     for (const sz of [-1, 1]) box(1.8, 0.45, 0.7, M.STONE, -4.4, 0.3, sz * 3.2, e);                          // ghế đá nhìn ra biển
     W.lanternAt(e, -2.0, 3.0, -2.0, 0.7); W.lanternAt(e, -2.0, 3.0, 2.0, 0.7);
-    const w = new THREE.Group(); w.position.set(-37.5, 0, 0); g.add(w);                                       // khung ảnh gỗ trên đài tây
-    for (const sz of [-1, 1]) { box(0.35, 3.6, 0.35, FRAME, 0, 1.8, sz * 2.5, w); bc(-37.5, sz * 2.5, 0.4); }
+    const fu = wu + Math.cos(wAng) * 5.2, fv = wv + Math.sin(wAng) * 5.2;                       // khung ở mép ngoài đài tây bắc, mặt hướng vào sân
+    const w = new THREE.Group(); w.position.set(fu, 0, fv); w.rotation.y = Math.atan2(Math.sin(wAng), -Math.cos(wAng)); g.add(w);               // khung ảnh gỗ trên đài hoàng hôn
+    for (const sz of [-1, 1]) { box(0.35, 3.6, 0.35, FRAME, 0, 1.8, sz * 2.5, w); bc(fu + sz * 2.5 * Math.sin(w.rotation.y), fv + sz * 2.5 * Math.cos(w.rotation.y), 0.4); }
     box(0.4, 0.4, 5.6, FRAME, 0, 3.7, 0, w);
     box(0.3, 0.3, 5.2, FRAME, 0, 0.35, 0, w);
     textPlate('HOÀNG HÔN', 2.2, 0.5, 0.22, 3.7, 0, w, Math.PI / 2, { size: 0.5 });
@@ -366,6 +345,8 @@ export function buildSummit(scene, W) {
 
   /* ---------- tầng ánh sáng và vật động ---------- */
   const dyn = new THREE.Group(); dyn.userData.dynamic = true; scene.add(dyn);
+  const tuvi = buildTuVi(g, W, { bc, bb, dyn });                              // Tử Vi Đường: sảnh, sân Bát Quái, cây ước nguyện, ống xăm, đồng xu
+  W.anim.oracle = kind => tuvi.oracle(kind);
 
   const smokeTex = softDot('rgba(235,235,235,0.6)', 64);
   const smokes = Array.from({ length: 6 }, (_, i) => {
@@ -394,7 +375,8 @@ export function buildSummit(scene, W) {
   const col = new THREE.Color(), WHITE = new THREE.Color(0xffffff);
   W.anim.summit = {
     season,
-    update(camera, env, t) {
+    update(camera, env, t, dt) {
+      tuvi.update(t, dt, env);
       const near = Math.hypot(camera.position.x - PLAZA.x, camera.position.z - PLAZA.z) < 80 && camera.position.y > PLAZA.h - 30;
       dyn.visible = true;
       // khói hương

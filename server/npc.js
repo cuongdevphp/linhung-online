@@ -95,7 +95,8 @@ const PILGRIMS = [
 ];
 
 /* ---- Sân đỉnh Đường Mây (xem shared/summit.js): thầy bói, người ngồi thiền, người ngắm mây, người dâng hương, người dạo ---- */
-const SUMMIT_TELLER = { name: 'Cụ Tám Tử Vi', robe: 3, u: -22.9, v: -2, ry: Math.PI / 2 };       // đứng sau bàn, quay ra phía đông
+const SUMMIT_TELLER = { name: 'Cụ Tám Tử Vi', robe: 3, u: -29.1, v: -2, ry: Math.PI / 2 };       // đứng sau bàn trong Tử Vi Đường, quay ra phía đông
+const SUMMIT_ASKER = { name: 'Chị Ngọc Diệp', robe: 5, u: -22.0, v: -3.0, ry: -Math.PI / 2 };       // đứng ở thềm, đang chờ xin xăm
 const SUMMIT_MEDITATORS = [
   { name: 'Thích Nguyên Từ', cushion: 0, robe: 3, monk: true },
   { name: 'Chị Mai Thảo', cushion: 3, robe: 4 },
@@ -104,7 +105,7 @@ const SUMMIT_MEDITATORS = [
 const SUMMIT_VIEWERS = [
   { name: 'Lê Bình Minh', robe: 0, u: 33.4, v: -2.8, ry: Math.PI / 2 },                           // đài đón bình minh, nhìn ra biển Đông
   { name: 'Phạm Thu Thảo', robe: 5, u: 33.4, v: 2.4, ry: Math.PI / 2 },
-  { name: 'Chú Sáu Mây', robe: 1, u: -35.6, v: 1.2, ry: -Math.PI / 2 }                            // đài ngắm hoàng hôn, nhìn về phía tây
+  { name: 'Chú Sáu Mây', robe: 1, u: -33.2, v: -17.1, ry: -2.05 }                                 // đài ngắm hoàng hôn ở tây bắc, nhìn ra phía mặt trời lặn
 ];
 const SUMMIT_BOWER = { name: 'Cô Út Minh Châu', robe: 4, u: 0, v: -11.6, ry: Math.PI };           // lễ trước lư hương đồng, quay mặt về Chùa Đồng
 const SUMMIT_WALKER = { name: 'Bác Bảy Check-in', robe: 2, route: [[0, 30], [0, 6], [-9, -8], [9, -8], [0, 6]] };
@@ -165,6 +166,8 @@ export function startNpcs(players, io, merit) {
   { // sân đỉnh Đường Mây
     const [tx, tz] = SU(SUMMIT_TELLER.u, SUMMIT_TELLER.v);
     add(SUMMIT_TELLER.name, ROBE(SUMMIT_TELLER.robe), tx, tz, SUMMIT_TELLER.ry);
+    const [ax, az] = SU(SUMMIT_ASKER.u, SUMMIT_ASKER.v);
+    add(SUMMIT_ASKER.name, ROBE(SUMMIT_ASKER.robe), ax, az, wrap(SUMMIT_ASKER.ry));
     for (const m of SUMMIT_MEDITATORS) {
       const c = SUMMIT_CUSHIONS[m.cushion];
       const p = add(m.name, ROBE(m.robe), c.x, c.z, wrap(c.ry), true);

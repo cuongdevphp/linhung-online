@@ -29,11 +29,11 @@ export const SUMMIT = STAIR_LANDINGS[PILGRIM.stages];
 
 /* SÂN ĐỈNH: sân tròn rộng bán kính 36 m ngay sau sân nghỉ cuối (sân nghỉ nằm lọt ở mép nam của sân), phẳng ở cao độ đỉnh.
  * Hai đài nhỏ nhô ra hai bên (đông: đón bình minh, tây: ngắm hoàng hôn). Chi tiết công trình ở public/js/summit.js. */
-export const PLAZA = { x: SUMMIT.x, z: SUMMIT.z - 31.6, r: 36, h: SUMMIT.h };
+export const PLAZA = { x: SUMMIT.x, z: SUMMIT.z - 31.6, r: 36, h: SUMMIT.h, inset: 0.9 };      // inset: lề từ mép sân tới chỗ người đi được (lan can ở mép sân)
 export const PLAZA_DISCS = [
   PLAZA,
-  { x: PLAZA.x + 34, z: PLAZA.z, r: 7, h: PLAZA.h },
-  { x: PLAZA.x - 34, z: PLAZA.z, r: 7, h: PLAZA.h }
+  { x: PLAZA.x + 34, z: PLAZA.z, r: 7, h: PLAZA.h, inset: 0.7 },
+  { x: PLAZA.x - 31, z: PLAZA.z - 16, r: 7, h: PLAZA.h, inset: 0.7 }      // tây bắc, tránh Tử Vi Đường đang chiếm mép tây
 ];
 /* Sân ga cáp treo chân núi, ngay phía nam sân nghỉ số 0 (ngoài tường tây sân sau). */
 export const LOWER_PAD = { x1: -57, x2: -43, z1: -65, z2: -50, h: BASE_H };
@@ -58,6 +58,22 @@ export function stairQuery(x, z, margin = 0) {
     if (s >= -1.5 && s <= LEG + 1.5 && Math.abs(c) <= HALF + margin) {
       return { kind: 'leg', i: g.i, s, c, h: g.h0 + RISE * clamp(s / LEG, 0, 1) };
     }
+  }
+  return null;
+}
+
+/* Vùng người chơi thật sự đứng được (client dùng để chặn): thu hẹp so với stairQuery để thân người không xuyên qua
+ * lan can hai bên bậc thang (mép trong lan can cách tim 2,5 m) và lan can mép sân đỉnh / hai đài (xem inset). Trả về { h } hoặc null. */
+const PLAYER_R = 0.35;
+export function stairWalk(x, z) {
+  for (const L of STAIR_LANDINGS) if (Math.hypot(x - L.x, z - L.z) <= landingR) return { h: L.h };
+  for (const D of PLAZA_DISCS) if (Math.hypot(x - D.x, z - D.z) <= D.r - (D.inset ?? 0.5)) return { h: D.h };
+  const P = LOWER_PAD;
+  if (x >= P.x1 + 0.3 && x <= P.x2 - 0.3 && z >= P.z1 + 0.3 && z <= P.z2 - 0.3) return { h: P.h };
+  for (const g of STAIR_LEGS) {
+    const dx = x - g.ax, dz = z - g.az;
+    const s = dx * g.ux + dz * g.uz, c = -dx * g.uz + dz * g.ux;
+    if (s >= -1.5 && s <= LEG + 1.5 && Math.abs(c) <= HALF - PLAYER_R) return { h: g.h0 + RISE * clamp(s / LEG, 0, 1) };
   }
   return null;
 }

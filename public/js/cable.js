@@ -146,7 +146,7 @@ export function buildCable(scene, W) {
   const ambient = Array.from({ length: AMBIENT }, makeCabin);
 
   W.cable = {
-    makeCabin, place, minClear, heading, laneDown: LANE_DOWN,
+    makeCabin, place, minClear, heading, laneDown: LANE_DOWN, lateral: [ex, ez],
     nodes: () => nx.map((x, i) => [x, ny[i], nz[i]]),
     remove(c) { scene.remove(c); },
     update(st, t) {

@@ -15,10 +15,10 @@ const spot = (type, u, v, r, text) => { const [x, z] = SU(u, v); return { type, 
 /* Điểm tương tác của sân đỉnh. Loại 'incenseTop' và 'fortune' và 'cable' do server kiểm tra khoảng cách, nên mỗi loại chỉ có một điểm. */
 export const SUMMIT_SPOTS = [
   spot('incenseTop', 0, -11.5, 4.4, 'dâng hương Chùa Đồng'),
-  spot('fortune', -16.2, -2, 3.8, 'xem tử vi · xin lời khuyên hôm nay'),
+  spot('fortune', -14.5, -2, 5.2, 'xin xăm · gieo quẻ · xem tử vi'),
   spot('meditate', 21, -2, 7.4, 'ngồi thiền trên thiền đài'),
   spot('view', 34, 0, 7.4, 'đón bình minh, săn mây'),
-  spot('view', -34, 0, 7.4, 'ngắm mây hoàng hôn'),
+  spot('view', -31, -16, 7.4, 'ngắm mây hoàng hôn'),
   spot('photo', 0, 26, 4.6, 'check-in Cổng Trời'),
   spot('photo', 9.5, 19, 3.4, 'check-in bên cột mốc 986 m'),
   spot('photo', 22, 17.5, 8, 'check-in giữa vườn hoa'),
@@ -39,9 +39,9 @@ export const SUMMIT_ZONES = [
   { name: 'Phật Bà Tây Bổ Đà Sơn', sub: 'Phật Bà đứng trên đài sen, nhìn xuống biển mây', ...spot('', -19, -21, 7) },
   { name: 'Phật Di Lặc', sub: 'Cười một cái, bao nhiêu phiền não cũng nhẹ', ...spot('', 19, -21, 6.5) },
   { name: 'Thiền đài', sub: 'Ngồi xuống, nghe gió từ biển mây', ...spot('', 21, -2, 7.6) },
-  { name: 'Tử Vi Đường', sub: 'Xem tử vi, xin lời khuyên cho ngày hôm nay', ...spot('', -22, -2, 6.5) },
+  { name: 'Tử Vi Đường', sub: 'Xin xăm, gieo quẻ Kinh Dịch, xem tử vi, xem tuổi hợp', ...spot('', -22, -2, 12) },
   { name: 'Đài đón bình minh', sub: 'Hướng đông, nhìn mặt trời lên trên biển mây', ...spot('', 34, 0, 7.4) },
-  { name: 'Đài ngắm hoàng hôn', sub: 'Hướng tây, mây nhuộm vàng chiều tà', ...spot('', -34, 0, 7.4) },
+  { name: 'Đài ngắm hoàng hôn', sub: 'Hướng tây, mây nhuộm vàng chiều tà', ...spot('', -31, -16, 7.4) },
   { name: 'Ga cáp treo Đỉnh Mây', sub: 'Trượt xuống chùa trong khoảng nửa phút', ...spot('', -22, 19.5, 8) },
   { name: 'Vườn hoa theo mùa', sub: 'Mỗi mùa một sắc hoa', ...spot('', 22, 17.5, 8) },
   { name: 'Cổng Trời', sub: 'Bước qua cổng là bước vào mây', ...spot('', 0, 25.5, 5.4) },
@@ -60,52 +60,5 @@ export const CABLE = {
 };
 export { LOWER_PAD };
 
-/* ===================== TỬ VI ===================== */
-const CAN = ['Canh', 'Tân', 'Nhâm', 'Quý', 'Giáp', 'Ất', 'Bính', 'Đinh', 'Mậu', 'Kỷ'];
-const HANH = ['Kim', 'Kim', 'Thủy', 'Thủy', 'Mộc', 'Mộc', 'Hỏa', 'Hỏa', 'Thổ', 'Thổ'];      // hành của thiên can, cùng thứ tự CAN
-const CHI = ['Thân', 'Dậu', 'Tuất', 'Hợi', 'Tý', 'Sửu', 'Dần', 'Mão', 'Thìn', 'Tỵ', 'Ngọ', 'Mùi'];
-const CON_GIAP = { Tý: 'Chuột', Sửu: 'Trâu', Dần: 'Hổ', Mão: 'Mèo', Thìn: 'Rồng', Tỵ: 'Rắn', Ngọ: 'Ngựa', Mùi: 'Dê', Thân: 'Khỉ', Dậu: 'Gà', Tuất: 'Chó', Hợi: 'Heo' };
-const MAU = { Kim: 'trắng hoặc ánh kim', Mộc: 'xanh lá', Thủy: 'xanh dương hoặc đen', Hỏa: 'đỏ hoặc cam', Thổ: 'vàng hoặc nâu' };
-const GIO = ['Tý (23h–1h)', 'Sửu (1h–3h)', 'Dần (3h–5h)', 'Mão (5h–7h)', 'Thìn (7h–9h)', 'Tỵ (9h–11h)', 'Ngọ (11h–13h)', 'Mùi (13h–15h)', 'Thân (15h–17h)', 'Dậu (17h–19h)', 'Tuất (19h–21h)', 'Hợi (21h–23h)'];
-const LOI_KHUYEN = [
-  'Làm lành tránh dữ, giữ tâm an thì mọi việc tự thông.',
-  'Hôm nay hợp với việc tha thứ: buông được một điều, nhẹ thêm một bước.',
-  'Việc gấp chớ vội, lời nặng chớ nói. Chậm một nhịp sẽ đỡ hối tiếc.',
-  'Có người đang chờ một lời hỏi thăm của bạn. Hãy nhắn cho họ.',
-  'Tài lộc đến từ sự chăm chỉ và giữ chữ tín, đừng chạy theo lời hứa dễ dãi.',
-  'Giữ sức khỏe trước: ngủ đủ, uống đủ nước, đi bộ thêm một đoạn.',
-  'Bố thí không chỉ là tiền bạc. Một nụ cười, một việc giúp người cũng là bố thí.',
-  'Gặp chuyện không vừa ý, hít ba hơi thật sâu rồi hãy trả lời.',
-  'Điều bạn định làm từ lâu, hôm nay là ngày thuận để bắt đầu.',
-  'Đừng so mình với người khác, mỗi loài hoa nở một mùa riêng.',
-  'Hôm nay nên giữ gìn lời nói, tránh tranh cãi chuyện tiền bạc.',
-  'Dành thêm chút thời gian ngồi cùng người già và trẻ nhỏ trong nhà.'
-];
-
-function mulberry(a) {
-  a = a | 0;
-  return () => {
-    a = (a + 0x6D2B79F5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-/* Năm sinh hợp lệ (số nguyên trong khoảng cho phép)? */
-export const validBirthYear = (y, now = new Date().getFullYear()) => Number.isInteger(y) && y >= 1900 && y <= now;
-
-/* Kết quả tử vi cho một năm sinh vào một ngày (dayKey = 'YYYY-MM-DD'). Cùng năm sinh, cùng ngày thì ra cùng kết quả.
- * Chỉ mang tính giải trí. */
-export function fortuneFor(year, dayKey) {
-  const can = CAN[year % 10], chi = CHI[year % 12], hanh = HANH[year % 10];
-  const [Y, Mo, D] = String(dayKey).split('-').map(Number);
-  const r = mulberry(year * 10007 + (Y || 0) * 372 + (Mo || 0) * 31 + (D || 0));
-  const star = () => 2 + Math.floor(r() * 4);              // 2..5 sao
-  return {
-    year, can, chi, animal: CON_GIAP[chi], hanh, day: dayKey,
-    stars: { tai: star(), viec: star(), khoe: star(), tinh: star() },
-    mau: MAU[hanh], so: 1 + Math.floor(r() * 9), gio: GIO[Math.floor(r() * 12)],
-    advice: LOI_KHUYEN[Math.floor(r() * LOI_KHUYEN.length)]
-  };
-}
+/* Tử vi, xin xăm, gieo quẻ, xem tuổi hợp: xem shared/oracle.js. Re-export để chỗ cũ vẫn import được. */
+export { fortuneFor, validBirthYear } from './oracle.js';

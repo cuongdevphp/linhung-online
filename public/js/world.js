@@ -3,7 +3,7 @@ import { UP, BURNER, BELL, DRUM, POND, BODHI, STATUE, SPOTS } from '/shared/layo
 import { mesh, box, cyl, textPlate, setRoot, mat, rng, bake } from './util.js';
 import { M } from './materials.js';
 import { roof, column, balustrade, createLanternField } from './parts.js';
-import { blockBox, blockCircle, STAIR_RUN } from './collision.js';
+import { blockBox, blockCircle, blockLine, STAIR_RUN } from './collision.js';
 import { buildQuanAm } from './statues.js';
 import { makeArhat } from './arhat.js';
 import { buildHall } from './hall.js';
@@ -54,6 +54,14 @@ export function buildWorld(scene) {
   balustrade(stat, 91.2, 56.3, 91.2, 8, 0, 2.2);
   box(53, 3.2, 0.8, M.STONE, 65.5, 1.6, -0.4);                              // tường chắn phía bắc đài Quán Thế Âm
   box(53.6, 0.3, 1.4, M.RIDGE, 65.5, 3.35, -0.4);
+  /* Va chạm cho tường rào, lan can mặt tiền, tường chắn ở z = 0 (thân người cộng thêm ở collision.js, nên người không xuyên qua tường / lan can) */
+  blockBox(-40.3, -39.5, 0, 56.8);                                                   // tường tây sân dưới
+  blockBox(-40.3, -9, 55.8, 56.6); blockBox(9, 24, 55.8, 56.6);                       // tường nam, hai bên cổng Tam Quan
+  blockLine(24, 56.3, 91.2, 56.3, 0.34); blockLine(91.2, 56.3, 91.2, 8, 0.34);        // lan can hướng biển
+  blockBox(-40.3, -7.9, -0.1, 0); blockBox(7.9, 92, -0.1, 0);                         // tường chắn giữa sân dưới và sân trên (mặt tường ở z = 0), trừ đại bậc thang
+  blockLine(-38.2, -0.3, -7.9, -0.3, 0.34); blockLine(7.9, -0.3, 38.2, -0.3, 0.34);  // lan can mép sân trên
+  blockBox(-40.3, -39.5, -64.5, 0); blockBox(-40.3, -39.5, -74.6, -71.5);             // tường tây sân sau, chừa cổng Đường Mây
+  blockBox(39.5, 40.3, -74.6, 0); blockBox(-40.3, 40.3, -74.6, -73.8);                // tường đông và tường sau
 
   /* ================= CỔNG TAM QUAN ================= */
   {
@@ -233,6 +241,7 @@ export function buildWorld(scene) {
     box(4.4, 2.2, 4.4, M.WALL, 0, 9.8, 0, g);
     roof(g, { w: 7.2, d: 7.2, h: 2.2, y: 10.8, s: 0.65, dragons: true });
     balustrade(g, -3.6, 3.6, -1.2, 3.6, 0.5, 1.2); balustrade(g, 1.2, 3.6, 3.6, 3.6, 0.5, 1.2);
+    blockLine(cx - 3.6, cz + 3.6, cx - 1.2, cz + 3.6, 0.3); blockLine(cx + 1.2, cz + 3.6, cx + 3.6, cz + 3.6, 0.3);      // lan can gác chuông / trống, chừa lối vào ở giữa
     return g;
   };
   {

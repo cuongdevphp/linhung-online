@@ -3,7 +3,7 @@ import { UP, POD, HALL, MO_PLAYER, MO_MONK, CUSHIONS, CUSHION_H } from '/shared/
 import { mesh, box, cyl, textPlate, mat, rng } from './util.js';
 import { M } from './materials.js';
 import { roof, column, dragonColumn, balustrade } from './parts.js';
-import { blockBox, blockCircle } from './collision.js';
+import { blockBox, blockCircle, blockLine } from './collision.js';
 import { makeBuddha } from './statues.js';
 
 /* ĐẠI HÙNG BẢO ĐIỆN: chánh điện hai tầng mái, mặt tiền cột rồng, bàn thờ Thích Ca - Quán Thế Âm - Địa Tạng. */
@@ -20,6 +20,7 @@ export function buildHall(scene, W) {
   for (let i = 0; i < 5; i++) box(16, 0.24 * (i + 1), 0.7, M.STONE, 0, UP + 0.12 * (i + 1), 15.15 - 0.7 * i, g);
   balustrade(g, -19.8, 11.9, -8.4, 11.9, POD); balustrade(g, 8.4, 11.9, 19.8, 11.9, POD);
   balustrade(g, -19.8, 11.9, -19.8, -11.8, POD); balustrade(g, 19.8, 11.9, 19.8, -11.8, POD);
+  for (const [x1, z1, x2, z2] of [[-19.8, 11.9, -8.4, 11.9], [8.4, 11.9, 19.8, 11.9], [-19.8, 11.9, -19.8, -11.8], [19.8, 11.9, 19.8, -11.8]]) blockLine(x1, wz(z1), x2, wz(z2), 0.34);   // lan can nền chánh điện không được xuyên qua
   const floor = mesh(new THREE.PlaneGeometry(35.6, 19.2), M.FLOOR, 0, POD + 0.09, -0.2, g, false);
   floor.rotation.x = -Math.PI / 2;
 

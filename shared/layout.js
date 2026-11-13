@@ -4,7 +4,7 @@
  * -z hướng lên núi Sơn Trà. Đơn vị: mét.
  */
 
-import { stairQuery, stairNearest, GATE_CORRIDOR } from './stairs.js';
+import { stairQuery, stairNearest, stairWalk, GATE_CORRIDOR } from './stairs.js';
 import { SUMMIT_SPOTS } from './summit.js';
 
 export const UP = 5;        // cao độ sân trên (stairs.js dùng cùng giá trị làm chân Đường Mây)
@@ -51,6 +51,14 @@ export function inBounds(x, z) {
   return (x >= LOWER.x1 && x <= LOWER.x2 && z >= LOWER.z1 && z <= LOWER.z2) ||
          (x >= UPPER.x1 && x <= UPPER.x2 && z >= UPPER.z1 && z <= UPPER.z2) ||
          inGate(x, z) || stairQuery(x, z, 0.4) !== null;
+}
+
+/* Vùng người chơi thật sự đứng được (client dùng để chặn, chặt hơn inBounds): bậc thang và sân đỉnh thu hẹp để thân người không xuyên
+ * qua lan can. Sân dưới và sân trên giữ nguyên, riêng dải sát tường chắn / lan can ở z = 0 do collision.js chặn bằng hộp. */
+export function walkable(x, z) {
+  return (x >= LOWER.x1 && x <= LOWER.x2 && z >= LOWER.z1 && z <= LOWER.z2) ||
+         (x >= UPPER.x1 && x <= UPPER.x2 && z >= UPPER.z1 && z <= UPPER.z2) ||
+         inGate(x, z) || stairWalk(x, z) !== null;
 }
 
 export function clampToBounds(x, z) {

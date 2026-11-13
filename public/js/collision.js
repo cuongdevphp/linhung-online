@@ -1,4 +1,4 @@
-import { UP, POD, BELL, DRUM, inBounds, CUSHIONS, CUSHION_H } from '/shared/layout.js';
+import { UP, POD, BELL, DRUM, walkable, CUSHIONS, CUSHION_H } from '/shared/layout.js';
 import { stairQuery } from '/shared/stairs.js';
 import { SUMMIT_CUSHIONS } from '/shared/summit.js';
 
@@ -36,10 +36,19 @@ export function seatLiftAt(x, z) {
 const boxes = [], circles = [];
 export const blockBox = (x1, x2, z1, z2) => boxes.push({ x1, x2, z1, z2 });
 export const blockCircle = (x, z, r) => circles.push({ x, z, r });
+/* Lan can / tường mỏng chạy từ (x1,z1) tới (x2,z2), dày `thick` mét: chặn như một dải hộp (chỉ trục x hoặc z) hoặc dãy trụ tròn (đường chéo).
+ * Thân người (PAD) cộng thêm ở blocked(), nên người đứng cách lan can khoảng thick/2 + PAD. */
+export function blockLine(x1, z1, x2, z2, thick = 0.3) {
+  const h = thick / 2;
+  if (Math.abs(z1 - z2) < 1e-6) return blockBox(Math.min(x1, x2) - h, Math.max(x1, x2) + h, z1 - h, z1 + h);
+  if (Math.abs(x1 - x2) < 1e-6) return blockBox(x1 - h, x1 + h, Math.min(z1, z2) - h, Math.max(z1, z2) + h);
+  const n = Math.max(2, Math.ceil(Math.hypot(x2 - x1, z2 - z1) / 0.4));
+  for (let i = 0; i <= n; i++) blockCircle(x1 + (x2 - x1) * i / n, z1 + (z2 - z1) * i / n, h);
+}
 
 const PAD = 0.35;   // bán kính người chơi
 export function blocked(x, z, fromH) {
-  if (!inBounds(x, z)) return true;
+  if (!walkable(x, z)) return true;
   for (const b of boxes) if (x > b.x1 - PAD && x < b.x2 + PAD && z > b.z1 - PAD && z < b.z2 + PAD) return true;
   for (const c of circles) { const dx = x - c.x, dz = z - c.z, r = c.r + PAD; if (dx * dx + dz * dz < r * r) return true; }
   return Math.abs(heightAt(x, z) - fromH) > 0.7;

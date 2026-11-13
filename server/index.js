@@ -7,7 +7,8 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as L from '../shared/layout.js';
 import { startNpcs } from './npc.js';
-import { CABLE, fortuneFor, validBirthYear } from '../shared/summit.js';
+import { CABLE } from '../shared/summit.js';
+import { fortuneFor, validBirthYear, stickFor, STICK_COUNT, castYi, YI_TOPICS, compatibility } from '../shared/oracle.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.env.PORT) || 5000;
@@ -20,6 +21,8 @@ const WEATHER_MIN_MS = 15000;         // giãn cách tối thiểu giữa hai l�
 const MAX_INCENSE = 80;
 const MAX_LANTERNS = 80;
 const RIDE_GAP_MS = 9000;             // hai chuyến cáp treo xuất phát cách nhau ít nhất bấy lâu để cabin không chồng lên nhau
+const CABIN_SEATS = 2;                // cabin chở tối đa 2 người
+const CABIN_WAIT_MS = 30000;          // người đầu tiên lên cabin chờ tối đa bấy lâu rồi cabin tự trượt
 let lastRideAt = 0;
 
 /* ====================== HTTP ====================== */
@@ -88,10 +91,42 @@ function bucket(rate, burst) {
   };
 }
 
-const pub = p => ({ id: p.id, name: p.name, color: p.color, x: p.x, z: p.z, ry: p.ry, moving: p.moving, sitting: p.sitting, act: p.act, monk: p.monk, ride: p.ride || undefined });
+const pub = p => ({ id: p.id, name: p.name, color: p.color, x: p.x, z: p.z, ry: p.ry, moving: p.moving, sitting: p.sitting, act: p.act, monk: p.monk, ride: p.ride && !p.ride.waiting ? p.ride : undefined });
 
 /* Ngày hiện tại theo giờ Việt Nam (UTC+7), dạng YYYY-MM-DD, làm hạt giống cho kết quả tử vi trong ngày. */
 const vnDay = () => new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10);
+
+/* Cabin đang chờ ở ga đỉnh (tối đa CABIN_SEATS người). */
+const cabin = { riders: [], since: 0, timer: null };
+let rideSeq = 0;
+const cabinPublic = () => ({ riders: cabin.riders.slice(), leaveAt: cabin.riders.length ? cabin.since + CABIN_WAIT_MS : 0 });
+const broadcastCabin = () => io.emit('cabin', cabinPublic());
+
+/* Bỏ người chơi khỏi cabin đang chờ. Trả về false nếu họ không ở trong cabin. */
+function leaveCabin(p) {
+  const i = cabin.riders.indexOf(p.id);
+  if (i < 0) return false;
+  cabin.riders.splice(i, 1);
+  if (p.ride && p.ride.waiting) p.ride = null;
+  if (!cabin.riders.length) { clearTimeout(cabin.timer); cabin.timer = null; }
+  return true;
+}
+
+/* Cabin rời ga: mọi người trong cabin cùng đi một chuyến. */
+function departCabin() {
+  if (!cabin.riders.length) return;
+  clearTimeout(cabin.timer); cabin.timer = null;
+  const now = Date.now(), riders = cabin.riders.splice(0), rid = ++rideSeq;
+  lastRideAt = now;
+  for (const id of riders) {
+    const p = players.get(id);
+    if (!p) continue;
+    p.ride = { rid, riders, t0: now, dur: CABLE.rideMs };
+    setTimeout(() => endRide(id), CABLE.rideMs + 400).unref();
+  }
+  io.emit('ride', { rid, riders, t0: now, dur: CABLE.rideMs });
+  broadcastCabin();
+}
 
 /* Kết thúc chuyến cáp treo: đặt người chơi ở ga chân núi và báo cho mọi người. */
 function endRide(id) {
@@ -143,8 +178,8 @@ io.on('connection', socket => {
   const allowAction = bucket(6, 8);
   const allowWeather = bucket(0.2, 2);
   const allowSit = bucket(1, 4);
-  const allowFortune = bucket(0.5, 2);
-  const allowCable = bucket(0.3, 2);
+  const allowFortune = bucket(0.4, 3);
+  const allowCable = bucket(1, 5);
   const cool = {};
 
   socket.on('join', d => {
@@ -161,7 +196,7 @@ io.on('connection', socket => {
     const p = { id: socket.id, name, color, x: sp.x, z: sp.z, ry: sp.ry, moving: false, sitting: false, lastMove: Date.now() };
     players.set(socket.id, p);
     prune();
-    socket.emit('init', { selfId: socket.id, now: Date.now(), players: [...players.values()].map(pub), incense });
+    socket.emit('init', { selfId: socket.id, now: Date.now(), players: [...players.values()].map(pub), incense, cabin: cabinPublic() });
     socket.broadcast.emit('joined', pub(p));
     socket.broadcast.emit('system', `🙏 ${name} vừa bước vào cổng chùa`);
     io.emit('count', players.size);
@@ -239,30 +274,88 @@ io.on('connection', socket => {
   });
 
   /* Xem tử vi ở Tử Vi Đường: chỉ trả kết quả cho người hỏi. Cùng năm sinh, cùng ngày thì ra cùng kết quả. Chỉ để giải trí. */
-  socket.on('fortune', d => {
+  /* Điều kiện chung cho các dịch vụ ở Tử Vi Đường: đang ở đủ gần, không đang ngồi cáp treo, không bấm quá nhanh. */
+  const oracleReady = () => {
     const p = players.get(socket.id);
-    if (!p || !allowFortune()) return;
+    if (!p || p.ride || !allowFortune()) return null;
     const s = L.SPOTS.find(s => s.type === 'fortune');
-    if (Math.hypot(p.x - s.x, p.z - s.z) > s.r + 3.5) return socket.emit('notice', 'Hãy lại gần Tử Vi Đường');
+    if (Math.hypot(p.x - s.x, p.z - s.z) > s.r + 3.5) { socket.emit('notice', 'Hãy lại gần Tử Vi Đường'); return null; }
+    return p;
+  };
+  /* Báo cho mọi người ở sân đỉnh: ống xăm lắc, đồng xu tung… và một dòng trong khung trò chuyện. */
+  const oracleShow = (p, kind, text) => { io.emit('oracle', { id: p.id, kind }); if (text) io.emit('system', text); };
+
+  socket.on('fortune', d => {
+    const p = oracleReady();
+    if (!p) return;
     const year = Number(d && d.year);
     if (!validBirthYear(year)) return socket.emit('notice', 'Năm sinh chưa hợp lệ');
-    socket.emit('fortune', fortuneFor(year, vnDay()));
+    const gender = d && (d.gender === 'nam' || d.gender === 'nu') ? d.gender : undefined;
+    socket.emit('fortune', fortuneFor(year, vnDay(), gender, new Date().getFullYear()));
+    oracleShow(p, 'star');
   });
 
-  /* Cáp treo một chiều từ ga Đỉnh Mây xuống ga chân núi. Chuyến chạy theo giờ server, mọi người cùng thấy. */
+  /* Xin xăm: server rút ngẫu nhiên một trong 100 số xăm; cùng số xăm thì luôn cùng bài thơ. */
+  socket.on('stick', () => {
+    const p = oracleReady();
+    if (!p) return;
+    const stick = stickFor(1 + Math.floor(Math.random() * STICK_COUNT));
+    socket.emit('stick', stick);
+    oracleShow(p, 'stick', `🎋 ${p.name} vừa xin được quẻ xăm số ${stick.n} · ${stick.levelName}`);
+  });
+
+  /* Gieo quẻ Kinh Dịch bằng ba đồng xu, sáu lần. */
+  socket.on('yi', d => {
+    const p = oracleReady();
+    if (!p) return;
+    const topic = d && YI_TOPICS.includes(d.topic) ? d.topic : 'suNghiep';
+    const res = castYi(Math.random, topic);
+    socket.emit('yi', res);
+    oracleShow(p, 'yi', `☯ ${p.name} vừa gieo được quẻ ${res.primary.name}${res.changed ? ' biến ' + res.changed.name : ''}`);
+  });
+
+  /* Xem tuổi hợp giữa hai năm sinh. */
+  socket.on('compat', d => {
+    const p = oracleReady();
+    if (!p) return;
+    const a = Number(d && d.a), b = Number(d && d.b);
+    if (!validBirthYear(a) || !validBirthYear(b)) return socket.emit('notice', 'Năm sinh chưa hợp lệ');
+    socket.emit('compat', compatibility(a, b));
+    oracleShow(p, 'match');
+  });
+
+  /* Cáp treo một chiều từ ga Đỉnh Mây xuống ga chân núi. Cabin chở tối đa 2 người: người lên trước chờ ở ga,
+   * người thứ hai có thể lên cùng, ai trong cabin bấm "Trượt" thì cabin đi (hoặc tự đi sau CABIN_WAIT_MS). Chuyến chạy theo giờ server. */
   socket.on('cable', () => {
     const p = players.get(socket.id);
     if (!p || p.ride || !allowCable()) return;
     const s = L.SPOTS.find(s => s.type === 'cable');
     if (Math.hypot(p.x - s.x, p.z - s.z) > s.r + 3.5) return socket.emit('notice', 'Hãy lại gần ga cáp treo');
+    if (cabin.riders.length >= CABIN_SEATS) return socket.emit('notice', 'Cabin đã đủ 2 người, mời bạn đi cabin sau');
     const now = Date.now();
-    if (now - lastRideAt < RIDE_GAP_MS) return socket.emit('notice', 'Cabin vừa rời ga, xin chờ vài giây…');
-    lastRideAt = now;
-    p.ride = { t0: now, dur: CABLE.rideMs };
+    if (!cabin.riders.length && now - lastRideAt < RIDE_GAP_MS) return socket.emit('notice', 'Cabin vừa rời ga, xin chờ vài giây…');
+    cabin.riders.push(p.id);
+    p.ride = { waiting: true };
     p.moving = false;
     if (p.sitting) { p.sitting = false; socket.broadcast.emit('sit', { id: p.id, on: false }); }
-    io.emit('ride', { id: p.id, t0: now, dur: CABLE.rideMs });
-    setTimeout(() => endRide(socket.id), CABLE.rideMs + 400).unref();
+    if (cabin.riders.length === 1) { cabin.since = now; cabin.timer = setTimeout(departCabin, CABIN_WAIT_MS); cabin.timer.unref(); }
+    broadcastCabin();
+  });
+
+  socket.on('slide', () => {
+    const p = players.get(socket.id);
+    if (!p || !allowCable() || !cabin.riders.includes(p.id)) return;
+    departCabin();
+  });
+
+  /* Xuống khỏi cabin khi chưa trượt: về lại chỗ lên cabin. */
+  socket.on('cableLeave', () => {
+    const p = players.get(socket.id);
+    if (!p || !allowCable() || !leaveCabin(p)) return;
+    const s = L.SPOTS.find(s => s.type === 'cable');
+    p.x = s.x; p.z = s.z; p.lastMove = Date.now();
+    io.emit('rideEnd', { id: p.id, x: p.x, z: p.z, ry: p.ry });
+    broadcastCabin();
   });
 
   socket.on('weather:set', key => {
@@ -275,6 +368,7 @@ io.on('connection', socket => {
   socket.on('disconnect', () => {
     const p = players.get(socket.id);
     if (!p) return;
+    if (leaveCabin(p)) broadcastCabin();                  // đang chờ trong cabin thì nhường chỗ
     players.delete(socket.id);
     io.emit('left', p.id);
     io.emit('count', players.size);

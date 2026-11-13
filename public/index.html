@@ -60,6 +60,16 @@
   </div>
   <div id="dock" class="dock">
   <button id="prompt" class="prompt" type="button" aria-live="polite"></button>
+  <div id="cabinUI" class="cbar">
+    <div id="cabinInfo" class="cinfo"></div>
+    <button id="slideBtn" class="cbtn go" type="button"><span class="ico">🚡</span>Trượt</button>
+    <button id="cabinLeave" class="cbtn" type="button"><span class="ico">↩</span>Xuống cabin</button>
+  </div>
+  <div id="climb" class="cbar">
+    <button type="button" class="cbtn" data-climb="1"><span class="ico">🚶</span>Leo bình thường</button>
+    <button type="button" class="cbtn" data-climb="5"><span class="ico">🏃</span>Leo nhanh ×5</button>
+    <button type="button" class="cbtn stop" data-climb="0"><span class="ico">⏹</span>Dừng leo</button>
+  </div>
   <div id="actions" class="actions">
     <button type="button" class="act" data-act="bow"><span class="ico">🙏</span><span class="lbl">Lễ Phật</span><kbd>B</kbd></button>
     <button type="button" class="act" data-act="meditate"><span class="ico">🧘</span><span class="lbl">Ngồi thiền</span><kbd>T</kbd></button>
@@ -83,16 +93,57 @@
 </section>
 
 <div id="fortune" class="modal" hidden>
-  <form id="fortuneForm" class="modal-card" autocomplete="off">
-    <h2>Tử Vi Đường</h2>
-    <p class="lead">Nhập năm sinh dương lịch để xem lời nhắn cho ngày hôm nay.</p>
-    <div class="fz-ask">
-      <input id="fortuneYear" type="number" inputmode="numeric" min="1900" max="2100" placeholder="VD: 1990">
-      <button class="primary" type="submit">Xem tử vi</button>
+  <div class="oracle" role="dialog" aria-label="Tử Vi Đường">
+    <header class="or-head">
+      <div class="or-seal">☯</div>
+      <div class="or-title"><h2>Tử Vi Đường</h2><p>Thầy bói trên đỉnh mây · xin xăm · gieo quẻ · tử vi</p></div>
+      <button id="fortuneClose" class="or-x" type="button" aria-label="Đóng">✕</button>
+    </header>
+    <nav class="or-tabs">
+      <button type="button" class="on" data-tab="stick"><i>🎋</i><span>Xin xăm</span></button>
+      <button type="button" data-tab="yi"><i>☯</i><span>Gieo quẻ</span></button>
+      <button type="button" data-tab="star"><i>🌟</i><span>Tử vi · Sao hạn</span></button>
+      <button type="button" data-tab="match"><i>💞</i><span>Tuổi hợp</span></button>
+    </nav>
+    <div class="or-body">
+      <section data-pane="stick">
+        <div class="or-stage"><div id="tube" class="tube"></div><div id="slip" class="slip" hidden></div></div>
+        <p class="or-hint">Thành tâm khấn điều mình cầu, rồi lắc ống xăm. Mỗi số xăm có một bài thơ riêng.</p>
+        <button id="stickBtn" class="or-go" type="button">🎋 Lắc ống xăm</button>
+        <div id="stickResult" class="or-result"></div>
+      </section>
+      <section data-pane="yi" hidden>
+        <label class="or-field"><span>Điều muốn hỏi</span>
+          <select id="yiTopic"><option value="suNghiep">Sự nghiệp, công việc</option><option value="taiLoc">Tiền bạc</option><option value="tinhDuyen">Tình cảm</option><option value="sucKhoe">Sức khỏe</option><option value="diXa">Chuyến đi</option></select>
+        </label>
+        <div class="or-stage yi-stage"><div id="coins" class="coins"><b class="coin"></b><b class="coin"></b><b class="coin"></b></div><div id="hexLines" class="hex-lines"></div></div>
+        <p class="or-hint">Tung ba đồng xu sáu lần để lập nên một quẻ Kinh Dịch (hào đỏ là hào động).</p>
+        <button id="yiBtn" class="or-go" type="button">☯ Gieo quẻ</button>
+        <div id="yiResult" class="or-result"></div>
+      </section>
+      <section data-pane="star" hidden>
+        <form id="fortuneForm" class="or-form" autocomplete="off">
+          <label class="or-field"><span>Năm sinh (dương lịch)</span><input id="fortuneYear" type="number" inputmode="numeric" min="1900" max="2100" placeholder="VD: 1990"></label>
+          <div class="or-field"><span>Giới tính (để tính sao chiếu mệnh)</span>
+            <div class="or-pills"><label><input type="radio" name="gender" value="nam" checked><b>Nam</b></label><label><input type="radio" name="gender" value="nu"><b>Nữ</b></label></div>
+          </div>
+          <button class="or-go" type="submit">🌟 Xem tử vi hôm nay</button>
+        </form>
+        <div id="fortuneResult" class="or-result"></div>
+      </section>
+      <section data-pane="match" hidden>
+        <form id="matchForm" class="or-form" autocomplete="off">
+          <div class="or-two">
+            <label class="or-field"><span>Năm sinh người thứ nhất</span><input id="matchA" type="number" inputmode="numeric" min="1900" max="2100" placeholder="VD: 1990"></label>
+            <label class="or-field"><span>Năm sinh người thứ hai</span><input id="matchB" type="number" inputmode="numeric" min="1900" max="2100" placeholder="VD: 1992"></label>
+          </div>
+          <button class="or-go" type="submit">💞 Xem tuổi hợp</button>
+        </form>
+        <div id="matchResult" class="or-result"></div>
+      </section>
     </div>
-    <div id="fortuneResult" class="fz-result"></div>
-    <button id="fortuneClose" class="fz-close" type="button">Đóng · Esc</button>
-  </form>
+    <footer class="or-foot">Chỉ mang tính giải trí, theo tín ngưỡng dân gian. Làm việc lành mỗi ngày mới là điều giữ được vận.</footer>
+  </div>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
