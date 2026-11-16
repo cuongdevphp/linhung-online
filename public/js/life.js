@@ -11,7 +11,7 @@ const V3 = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
    HOẠT CẢNH: mọi nhân vật NPC chạy theo giờ server `st` nên mọi người chơi thấy giống nhau.
    ============================================================================ */
 export function createLife(scene, W, sfx) {
-  const L = { onAutoBell: null };
+  const L = { onAutoBell: null, tips: [] };      // tips: đầu chổi (toạ độ thế giới) của người chơi đang quét lá, main.js điền mỗi khung hình
   const R = rng(5150);
   const tmp = V3();
 
@@ -90,11 +90,12 @@ export function createLife(scene, W, sfx) {
         if (l.y <= 0.04) { l.y = 0.04; l.st = 1; l.age = 0; l.rx = (Math.random() - 0.5) * 0.3; l.rz = (Math.random() - 0.5) * 0.3; }
       } else if (l.st === 1) {                            // nằm trên sân
         l.age += dt;
-        if (sw.active) {
-          const dx = l.x - sw.tip.x, dz = l.z - sw.tip.z;
+        for (let k = sw.active ? -1 : 0; k < sw.tips.length; k++) {      // k = -1: chổi của chú tiểu; k >= 0: chổi của người chơi đang quét lá
+          const tp = k < 0 ? sw.tip : sw.tips[k], dx = l.x - tp.x, dz = l.z - tp.z;
           if (dx * dx + dz * dz < 1.0) {
             const cx = PILE.x - l.x, cz = PILE.z - l.z, len = Math.hypot(cx, cz) || 1, push = 2.2 + Math.random();
             l.vx = cx / len * push; l.vz = cz / len * push; l.vy = 1.4; l.ry += 1;
+            break;
           }
         }
         if (wind > 1.2) { l.vx += wind * 0.6 * dt * Math.sin(l.seed); l.vz += wind * 0.3 * dt; }
@@ -350,7 +351,7 @@ export function createLife(scene, W, sfx) {
     tieu.body.position.y = tp.walking ? Math.abs(Math.sin(t * 6)) * 0.02 : 0;
     tieu.root.updateMatrixWorld(true);
     tipW.copy(bB).applyMatrix4(tieu.body.matrixWorld);
-    updateLeaves(dt, t, env.wind, { active: tp.sweeping && sws * sws > 0.3, tip: tipW });
+    updateLeaves(dt, t, env.wind, { active: tp.sweeping && sws * sws > 0.3, tip: tipW, tips: L.tips });
     if (lastPhase < 0.86 && tp.p >= 0.86) collectPile();
     lastPhase = tp.p;
 

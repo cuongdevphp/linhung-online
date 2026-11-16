@@ -3,7 +3,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { ROBES, BELL, DRUM, STATUE, POND, BODHI, MO_PLAYER, POD } from '/shared/layout.js';
+import { ROBES, BELL, DRUM, STATUE, POND, BODHI, MO_PLAYER, POD, WORK_KINDS, WORK_MERIT } from '/shared/layout.js';
 import { buildTerrain, terrainHeight } from './terrain.js';
 import { stairQuery, stairProgress, PILGRIM, PLAZA_DISCS, LOWER_PAD, STAIR_ROUTE, SUMMIT } from '/shared/stairs.js';
 import { SUMMIT_ZONES } from '/shared/summit.js';
@@ -14,7 +14,7 @@ import { makeHuman } from './human.js';
 import { createWeather, PRESETS } from './weather.js';
 import { sfx } from './audio.js';
 import { templeMusic } from './temple-music.js';
-import { attachWork, updateWork } from './work.js';
+import { attachWork, detachWork, updateWork } from './work.js';
 import { lerpAngle, makeLabel, clamp } from './util.js';
 import { M } from './materials.js';
 import { STATUE_MATS } from './statues.js';
@@ -90,7 +90,7 @@ function createPlayer(p) {
   const label = makeLabel(p.name); label.position.y = h.height + 0.1; h.root.add(label);
   scene.add(h.root);
   const o = Object.assign(h, { id: p.id, name: p.name, color: p.color, label, target: new THREE.Vector3(p.x, 0, p.z), targetRy: p.ry, moving: !!p.moving, sitting: !!p.sitting, walk: 0, bow: 0, bubble: null, bubbleT: 0 });
-  if (p.act) attachWork(o, p.act);                       // Phật tử làm công quả trong nhà bếp
+  if (p.act) attachWork(o, p.act, p.side);               // Phật tử làm công quả (NPC trong nhà bếp, hoặc người chơi đang quét lá, lặt rau, nấu cơm)
   players.set(p.id, o);
   if (p.ride) startRide(o, p.ride);                      // vào chùa giữa lúc ai đó đang ngồi cáp treo
   return o;
@@ -270,6 +270,7 @@ socket.on('init', d => {
   if (first) camYaw = 0;
   else toast('🙏 Đã kết nối lại với chùa');
   meditating = false; updateSitUI();                      // vào lại thì đứng dậy (server cấp người chơi mới)
+  myWork = null; setWorkUI(false);
   joined = true; joining = false;
   if (first) {
     $('#join').classList.add('leaving'); setTimeout(() => { preview?.stop(); $('#join').remove(); }, 900);
@@ -341,6 +342,38 @@ life.onAutoBell = () => {
   if (joined) toast('🔔 Chú tiểu thỉnh chuông – hãy dừng lại, hít thở sâu');
 };
 
+/* ---- công quả: quét lá, lặt rau, nấu cơm. Server giữ giờ (5 đến 10 giây) và cộng WORK_MERIT công đức khi làm trọn; bước đi giữa chừng thì không được ---- */
+let myWork = null;                                       // { kind, sit, t0, dur } khi mình đang công quả
+const sweepTips = [];
+function setWorkUI(on) { $('#workUI').classList.toggle('show', on); if (!on) $('#workFill').style.width = '0%'; }
+function cancelWork() {
+  if (!myWork) return;
+  socket.emit('workStop');
+  if (me) { detachWork(me); me.sitting = false; }
+  myWork = null; setWorkUI(false);
+  toast('Bạn đã dừng công quả giữa chừng, chưa được công đức');
+}
+socket.on('work', d => {
+  const o = players.get(d.id); if (!o || o.ride) return;
+  attachWork(o, d.act, d.side);
+  o.sitting = !!d.sit; o.moving = false;
+  o.root.position.x = d.x; o.root.position.z = d.z; o.target.set(d.x, 0, d.z); o.targetRy = d.ry;
+  if (o !== me) return;
+  myWork = { kind: d.kind, sit: !!d.sit, t0: performance.now(), dur: d.dur };
+  $('#workText').textContent = `${WORK_KINDS[d.kind].doing}… (+${WORK_MERIT} công đức)`;
+  setWorkUI(true);
+});
+socket.on('workEnd', d => {
+  const o = players.get(d.id);
+  if (o) { detachWork(o); o.sitting = false; }
+  if (d.ok) setMerit(d.merit, o === me);
+  if (o !== me) return;
+  const was = myWork; myWork = null; setWorkUI(false);
+  if (d.ok) { sfx.chime(0.5); toast(`🙏 Công quả xong, ${esc(WORK_KINDS[d.kind].text)} <b>+${d.gain} công đức</b>`); }
+  else if (was) toast('Bạn đã dừng công quả giữa chừng, chưa được công đức');
+});
+$('#workStop').addEventListener('click', cancelWork);
+
 /* ====================== ĐIỀU KHIỂN ====================== */
 const keys = {};
 let camYaw = 0, camPitch = 0.3, camDist = 9.5;
@@ -369,6 +402,7 @@ function updateClimbUI() {
 }
 function startAuto(mul) {
   if (!me || me.ride) return;
+  cancelWork();
   setSitting(false);
   const p = me.root.position;
   let best = 0, bd = Infinity;                                                // đoạn tuyến gần chỗ đang đứng nhất, rồi đi tiếp từ đó
@@ -561,10 +595,16 @@ socket.on('oracle', d => W.anim.oracle?.(d.kind));
 
 function doAction(type) {
   if (!joined || me?.ride) return;
+  if (!WORK_KINDS[type]) cancelWork();                   // làm việc khác thì thôi công quả
   if (type === 'meditate') return setSitting(!meditating);
   if (type === 'view' || type === 'photo') return nearSpot?.type === type ? (type === 'view' ? doView() : doPhoto()) : undefined;
   if (!socket.connected) return toast('Mất kết nối, đang thử lại…');
   if (type !== 'bow' && (!nearSpot || nearSpot.type !== type)) return toast('Hãy lại gần để ' + esc(W.spots.find(s => s.type === type).text));
+  if (WORK_KINDS[type]) {                                // quét lá, lặt rau, nấu cơm: server chọn chỗ và hẹn giờ
+    if (myWork) return;
+    setSitting(false); stopAuto();
+    return socket.emit('work', { kind: type });
+  }
   if (type === 'fortune') return openFortune();
   if (type === 'cable') return doCable();
   if (type !== 'bow') setSitting(false);                 // đứng dậy trước khi đánh chuông, trống, thắp nhang…
@@ -572,7 +612,8 @@ function doAction(type) {
 }
 const SPOT_ICON = {
   incense: '🪔', bell: '🔔', drum: '🥁', mo: '🪵', lantern: '🏮', incenseTop: '🪔',
-  fortune: '🔮', meditate: '🧘', view: '🌄', photo: '📸', cable: '🚡'
+  fortune: '🔮', meditate: '🧘', view: '🌄', photo: '📸', cable: '🚡',
+  sweep: WORK_KINDS.sweep.icon, pick: WORK_KINDS.pick.icon, cook: WORK_KINDS.cook.icon
 };
 
 /* Hàng nút thao tác (lễ Phật, ngồi thiền, thắp nhang…) thu gọn sau nút "Thao tác", bấm vào mới mở ra; làm xong thì tự thu lại. */
@@ -695,6 +736,7 @@ function update(dt, t) {
     const autoDir = auto && !me.ride ? autoStep(p) : null;   // [hướng x, hướng z, còn cách điểm kế tiếp] khi đang tự leo
     const mag = manual ? inputMag : 1, moving = manual || !!autoDir;
     if (moving && meditating) setSitting(false);           // bấm phím đi là xả thiền
+    if (moving && myWork) cancelWork();                    // bước đi là dừng công quả
     if (moving) {
       let mx, mz;
       if (autoDir) { [mx, mz] = autoDir; }
@@ -730,7 +772,7 @@ function update(dt, t) {
 
     nearSpot = me.ride ? null : W.spots.find(s => Math.hypot(p.x - s.x, p.z - s.z) < s.r) || null;
     const pr = $('#prompt');
-    if (nearSpot) {
+    if (nearSpot && !myWork) {                               // đang công quả thì ẩn nút ngữ cảnh, đã có thanh tiến độ và nút Dừng
       // nút ngữ cảnh thay cho phím E: hiện biểu tượng + việc có thể làm tại chỗ đang đứng
       let label = nearSpot.type === 'meditate' && meditating ? 'Đứng dậy' : nearSpot.text.charAt(0).toUpperCase() + nearSpot.text.slice(1);
       if (nearSpot.type === 'cable' && cabinInfo.riders.length) label = cabinInfo.riders.length >= 2 ? 'Cabin đã đủ 2 người' : 'Lên cabin cùng (đang chờ 1/2)';
@@ -738,6 +780,8 @@ function update(dt, t) {
       if (pr.dataset.k !== html) { pr.innerHTML = html; pr.dataset.k = html; }
       pr.classList.add('show');
     } else pr.classList.remove('show');
+
+    if (myWork) $('#workFill').style.width = (clamp((performance.now() - myWork.t0) / myWork.dur, 0, 1) * 100).toFixed(0) + '%';   // thanh tiến độ công quả
 
     // nút tự leo: hiện ở chân núi và trên Đường Mây, ẩn khi lên tới đỉnh (sân đỉnh không còn là bậc thang)
     const qs = me.ride ? null : stairQuery(p.x, p.z, 0.6);
@@ -792,7 +836,7 @@ function update(dt, t) {
     }
 
     // camera bám theo (hạ thấp điểm nhìn khi ngồi thiền)
-    eyeH += ((meditating ? 1.05 : 1.5) - eyeH) * Math.min(1, dt * 5);
+    eyeH += (((meditating || myWork?.sit) ? 1.05 : 1.5) - eyeH) * Math.min(1, dt * 5);
     const ty = p.y + eyeH;
     tmp.set(p.x + Math.sin(camYaw) * Math.cos(camPitch) * camDist, ty + Math.sin(camPitch) * camDist, p.z + Math.cos(camYaw) * Math.cos(camPitch) * camDist);
     const onMountain = tmp.x < -41 || tmp.z < -76;
@@ -845,6 +889,12 @@ function update(dt, t) {
   }
 
   /* --- hoạt cảnh & thời tiết --- */
+  life.tips.length = 0;                                      // đầu chổi của những người đang quét lá: lá quanh đó bị gạt về đống lá
+  for (const o of players.values()) {
+    if (o.work?.act !== 'sweep') continue;
+    const v = sweepTips[life.tips.length] ||= new THREE.Vector3();
+    life.tips.push(o.upper.localToWorld(v.copy(o.work.tip)));
+  }
   life.update(dt, st, t, env, me, focus);
   weather.update(dt, t, camera.position, focus);
   terrain.update(dt, env);
@@ -925,7 +975,7 @@ if (DEV) {
     },
     weather(k) { weather.set(k, true); setWeatherUI(); },
     terrainHeight, heightAt, blocked, W,
-    state: () => ({ joined, sitting: meditating, pos: me && me.root.position.toArray(), zone: zoneName, players: players.size, calls: renderer.info.render.calls, tris: renderer.info.render.triangles, geos: renderer.info.memory.geometries, tex: renderer.info.memory.textures }),
+    state: () => ({ joined, sitting: meditating, work: myWork?.kind ?? null, merit: $('#merit')?.textContent, pos: me && me.root.position.toArray(), zone: zoneName, players: players.size, calls: renderer.info.render.calls, tris: renderer.info.render.triangles, geos: renderer.info.memory.geometries, tex: renderer.info.memory.textures }),
     act(type) { doAction(type); },
     socketDrop() { socket.io.engine.close(); },          // giả lập đứt mạng: socket.io tự nối lại
     selfId: () => selfId,

@@ -7,6 +7,7 @@ import { span } from './util.js';
  *   pick : ngồi lặt rau từ rổ
  *   fan  : ngồi trước cửa lò, phe phẩy quạt cho lửa cháy
  *   eat  : ngồi xếp bằng bên bàn thấp, tay trái bưng bát, tay phải gắp cơm đưa lên miệng
+ *   sweep: đứng quét sân bằng chổi tre, hai tay giữ cán, đầu chổi lướt qua lại (người chơi quét lá, xem WORK_KINDS ở layout.js)
  * Vị trí đứng/ngồi phải khớp với bố cục nhà bếp ở kitchen.js và server/npc.js.
  * Mọi mục tiêu của tay tính theo hệ "thân đã nghiêng": h = cao hơn hông, f = ra phía trước. */
 
@@ -17,6 +18,12 @@ const FAN = new THREE.MeshStandardMaterial({ color: 0xe6c57a, roughness: 0.9, si
 const BOWL = new THREE.MeshStandardMaterial({ color: 0xe9e2d0, roughness: 0.4, side: THREE.DoubleSide });
 const RICE = new THREE.MeshStandardMaterial({ color: 0xf4f0e2, roughness: 0.9 });
 const STICK = new THREE.CylinderGeometry(0.022, 0.028, 1, 6);
+const BAMBOO = new THREE.MeshStandardMaterial({ color: 0xc9a85a, roughness: 0.55 });
+const STRAW = new THREE.MeshStandardMaterial({ color: 0xa7834a, roughness: 0.9, side: THREE.DoubleSide });
+const ROPE = new THREE.MeshStandardMaterial({ color: 0xc9b48a, roughness: 0.9 });
+const BRISTLE = new THREE.ConeGeometry(0.05, 0.55, 5, 1, true);
+const BAND = new THREE.CylinderGeometry(0.05, 0.05, 0.1, 8);
+const SHARED_GEO = new Set([STICK, BRISTLE, BAND]);
 
 const Rv = new THREE.Vector3(), B = new THREE.Vector3(), D = new THREE.Vector3(), H = new THREE.Vector3(), H2 = new THREE.Vector3(), A = new THREE.Vector3();
 
@@ -25,13 +32,27 @@ function P(out, th, h, f, x = 0) {
   const c = Math.cos(th), s = Math.sin(th);
   return out.set(x, h * c + f * s, -h * s + f * c);
 }
+const UPV = new THREE.Vector3(0, 1, 0);
 const ease = u => u * u * (3 - 2 * u);
 const lerpV = (out, a, b, u) => out.copy(a).lerp(b, u);
 
-export function attachWork(o, act) {
-  const w = { act, off: Math.random() * 20 };
-  const mk = (geo, mat) => { const m = new THREE.Mesh(geo, mat); m.castShadow = true; return m; };
-  if (act === 'stir') {
+/* act: stir | chop | fan | eat | pick | sweep. side: độ lệch ngang của miệng nồi so với thân người (chỉ dùng cho stir, xem WORK_SEATS). */
+export function attachWork(o, act, side = 0) {
+  if (o.work) detachWork(o);
+  const w = { act, side: Number(side) || 0, off: Math.random() * 20, nodes: [] };
+  const mk = (geo, mat) => { const m = new THREE.Mesh(geo, mat); m.castShadow = true; w.nodes.push(m); return m; };
+  if (act === 'sweep') {
+    w.handle = mk(STICK, BAMBOO);
+    w.head = new THREE.Group(); w.nodes.push(w.head);
+    for (let k = 0; k < 9; k++) {                                       // chổi tre: nắm rơm xoè ra như chổi chú tiểu quét lá
+      const s = mk(BRISTLE, STRAW); s.castShadow = false;
+      s.position.set((k - 4) * 0.045, -0.24, 0); s.rotation.set(Math.PI, 0, (k - 4) * 0.09);
+      w.head.add(s);
+    }
+    const band = mk(BAND, ROPE); band.position.y = 0.02; band.castShadow = false; w.head.add(band);
+    w.tip = new THREE.Vector3();                                        // đầu chổi (trong không gian `upper`), main.js đổi sang toạ độ thế giới để đẩy lá
+    o.upper.add(w.handle, w.head);
+  } else if (act === 'stir') {
     w.stick = mk(STICK, WOOD);
     w.blade = mk(new THREE.BoxGeometry(0.17, 0.24, 0.025), WOOD);
     o.upper.add(w.stick, w.blade);
@@ -44,7 +65,7 @@ export function attachWork(o, act) {
     const handle = mk(new THREE.CylinderGeometry(0.012, 0.012, 0.14, 5), WOOD); handle.position.set(0, 0.07, 0);
     o.arms[1].hand.add(fan, handle);
   } else if (act === 'eat') {
-    const bowl = new THREE.Group(); bowl.rotation.x = -Math.PI / 2; bowl.position.set(0, 0.06, -0.015);   // miệng bát hướng lên
+    const bowl = new THREE.Group(); w.nodes.push(bowl); bowl.rotation.x = -Math.PI / 2; bowl.position.set(0, 0.06, -0.015);   // miệng bát hướng lên
     const shell = mk(new THREE.SphereGeometry(0.065, 10, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), BOWL);
     const rice = mk(new THREE.CircleGeometry(0.058, 10), RICE); rice.rotation.x = -Math.PI / 2; rice.position.y = -0.012;
     bowl.add(shell, rice);
@@ -61,15 +82,41 @@ export function attachWork(o, act) {
   return w;
 }
 
+/* Cất dụng cụ và trả tay về bình thường (tư thế do vòng lặp chính đặt lại mỗi khung hình). */
+export function detachWork(o) {
+  const w = o.work;
+  if (!w) return;
+  for (const n of w.nodes) { n.removeFromParent(); if (n.geometry && n.geometry !== STICK && !SHARED_GEO.has(n.geometry)) n.geometry.dispose(); }
+  o.work = null;
+  o.grip(1, 0); o.grip(-1, 0);
+  o.upper.rotation.x = 0; o.neck.rotation.x = 0;
+}
+
 /* Gọi mỗi khung hình sau khi tư thế mặc định đã đặt và trước o.idle(). */
 export function updateWork(o, t) {
   const w = o.work, tt = t + w.off;
   o.closedEyes = false;
 
-  if (w.act === 'stir') {
-    const th = 0.12, a = tt * 2.2;
-    P(Rv, th, 0.36, 0.45);                                      // điểm tựa trên miệng nồi
-    P(B, th, 0.07, 1.2 + Math.sin(a) * 0.2, Math.cos(a) * 0.2); // đầu đũa vẽ vòng tròn trong nồi
+  if (w.act === 'sweep') {
+    const th = 0.25, a = tt * 3.6, gy = -o.hipY + 0.02;                // gy: mặt sân trong hệ hông
+    P(B, th, gy, 0.92 + Math.cos(a * 2) * 0.05, Math.sin(a) * 0.38);   // đầu chổi lướt qua lại trên sân
+    P(H, th, 0.3, 0.3, 0.05 - Math.sin(a) * 0.04);                      // tay trên giữ cán ở tầm ngực
+    D.copy(H).sub(B).normalize();                                       // hướng cán, từ đầu chổi lên tay
+    H2.copy(H).addScaledVector(D, -0.22);                               // tay dưới nắm thấp hơn dọc cán
+    A.copy(H).addScaledVector(D, 0.2);                                  // đầu trên của cán
+    o.reach(1, H.x, H.y, H.z, 1, -0.5, -0.3); o.grip(1, 0.9);
+    o.reach(-1, H2.x, H2.y, H2.z, -1, -0.6, -0.3); o.grip(-1, 0.9);
+    span(w.handle, B, A);
+    w.head.position.copy(B).addScaledVector(D, 0.5);
+    w.head.quaternion.setFromUnitVectors(UPV, D);
+    w.head.rotateY(Math.sin(a) * 0.4);
+    w.tip.copy(B);
+    o.upper.rotation.x = th;
+    o.neck.rotation.x = 0.2;
+  } else if (w.act === 'stir') {
+    const th = 0.12, a = tt * 2.2, sd = w.side, rr = sd ? 0.14 : 0.2;     // sd != 0: hai người chung một nồi, miệng nồi lệch sang một bên
+    P(Rv, th, 0.36, 0.45, sd * 0.35);                           // điểm tựa trên miệng nồi
+    P(B, th, 0.07, 1.2 + Math.sin(a) * rr, sd + Math.cos(a) * rr); // đầu đũa vẽ vòng tròn trong nồi
     D.copy(Rv).sub(B);
     H.copy(Rv).addScaledVector(D, 0.08);
     H2.copy(Rv).addScaledVector(D, 0.26);

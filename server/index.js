@@ -91,7 +91,7 @@ function bucket(rate, burst) {
   };
 }
 
-const pub = p => ({ id: p.id, name: p.name, color: p.color, gender: p.gender, x: p.x, z: p.z, ry: p.ry, moving: p.moving, sitting: p.sitting, act: p.act, monk: p.monk, ride: p.ride && !p.ride.waiting ? p.ride : undefined });
+const pub = p => ({ id: p.id, name: p.name, color: p.color, gender: p.gender, x: p.x, z: p.z, ry: p.ry, moving: p.moving, sitting: p.sitting, act: p.act, side: p.side, monk: p.monk, ride: p.ride && !p.ride.waiting ? p.ride : undefined });
 
 /* Ngày hiện tại theo giờ Việt Nam (UTC+7), dạng YYYY-MM-DD, làm hạt giống cho kết quả tử vi trong ngày. */
 const vnDay = () => new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10);
@@ -168,6 +168,46 @@ function scheduleWeather() {
 }
 scheduleWeather();
 
+/* ====================== CÔNG QUẢ ====================== */
+/* Quét lá, lặt rau, nấu cơm: mỗi lần kéo dài 5 đến 10 giây (server chọn ngẫu nhiên, client không rút ngắn được).
+ * Làm trọn thì được WORK_MERIT công đức; bước đi, ngồi thiền, lên cáp treo hay rời chùa giữa chừng thì không được. Mỗi chỗ ngồi chỉ một người. */
+function endWork(p, ok) {
+  const w = p.work;
+  if (!w) return;
+  clearTimeout(w.timer);
+  p.work = null; p.act = undefined; p.side = undefined;
+  if (w.sit) p.sitting = false;
+  if (ok) { merit += L.WORK_MERIT; dirty = true; }
+  io.emit('workEnd', { id: p.id, ok, kind: w.kind, gain: ok ? L.WORK_MERIT : 0, merit });
+}
+/* Trả về chuỗi báo lỗi nếu chưa làm được, ngược lại bắt đầu công quả và trả null. */
+function startWork(p, kind) {
+  const info = L.WORK_KINDS[kind];
+  let seatIdx = -1, seat = null;
+  if (kind === 'sweep') {
+    const s = L.SWEEP_SPOT;
+    if (Math.hypot(p.x - s.x, p.z - s.z) > s.r + 3.5) return 'Hãy lại gần gốc bồ đề để quét lá';
+  } else {
+    const taken = new Set();
+    for (const q of players.values()) if (q.work && q.work.seat >= 0) taken.add(q.work.seat);
+    const near = [];
+    L.WORK_SEATS.forEach((s, i) => { const d = Math.hypot(p.x - s.x, p.z - s.z); if (s.kind === kind && d <= 1.2 + 3.5) near.push({ i, d }); });
+    if (!near.length) return `Hãy lại gần nhà bếp để ${info.text}`;
+    const free = near.filter(n => !taken.has(n.i)).sort((a, b) => a.d - b.d);
+    if (!free.length) return 'Chỗ này đang có người làm, bạn đợi một chút nhé';
+    seatIdx = free[0].i; seat = L.WORK_SEATS[seatIdx];
+  }
+  const now = Date.now(), [lo, hi] = L.WORK_MS, dur = Math.round((lo + Math.random() * (hi - lo)) / 100) * 100;
+  if (seat) { p.x = seat.x; p.z = seat.z; p.ry = seat.ry; }
+  else p.ry = ((Math.atan2(L.PILE.x - p.x, L.PILE.z - p.z) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);   // quay mặt về đống lá
+  p.moving = false; p.lastMove = now;
+  p.sitting = !!seat?.sit; p.act = info.act; p.side = seat?.side;
+  const w = p.work = { kind, seat: seatIdx, sit: p.sitting, t0: now, dur };
+  w.timer = setTimeout(() => endWork(p, true), dur); w.timer.unref();
+  io.emit('work', { id: p.id, kind, act: p.act, side: p.side, sit: p.sitting, x: p.x, z: p.z, ry: p.ry, dur });
+  return null;
+}
+
 /* ====================== SOCKET ====================== */
 io.on('connection', socket => {
   prune();
@@ -208,6 +248,7 @@ io.on('connection', socket => {
     if (!p || !d || p.ride || !allowMove()) return;                  // đang ngồi cáp treo thì vị trí do server điều khiển
     const x = Number(d.x), z = Number(d.z), ry = Number(d.ry);
     if (!Number.isFinite(x) || !Number.isFinite(z) || !Number.isFinite(ry)) return;
+    if (p.work) { if (!d.moving) return; endWork(p, false); }        // đang công quả: gói đứng yên đến muộn thì bỏ qua, bước đi thì dừng việc
     const now = Date.now();
     const dt = Math.max(0.016, (now - p.lastMove) / 1000);
     p.lastMove = now;
@@ -227,6 +268,7 @@ io.on('connection', socket => {
   socket.on('sit', on => {
     const p = players.get(socket.id);
     if (!p || p.ride || !allowSit()) return;
+    if (p.work) endWork(p, false);
     on = on === true;
     if (p.sitting === on) return;
     p.sitting = on;
@@ -272,6 +314,20 @@ io.on('connection', socket => {
       while (lanterns.length > MAX_LANTERNS) lanterns.shift();
       io.emit('lantern', l);
     }
+  });
+
+  /* Công quả: quét lá, lặt rau, nấu cơm. Server giữ giờ và trả công đức khi đủ 5 đến 10 giây (xem startWork / endWork). */
+  const allowWork = bucket(1, 4);
+  socket.on('work', d => {
+    const p = players.get(socket.id);
+    const kind = d && d.kind;
+    if (!p || p.ride || p.work || typeof kind !== 'string' || !Object.hasOwn(L.WORK_KINDS, kind) || !allowWork()) return;
+    const err = startWork(p, kind);
+    if (err) socket.emit('notice', err);
+  });
+  socket.on('workStop', () => {
+    const p = players.get(socket.id);
+    if (p?.work) endWork(p, false);
   });
 
   /* Xem tử vi ở Tử Vi Đường: chỉ trả kết quả cho người hỏi. Cùng năm sinh, cùng ngày thì ra cùng kết quả. Chỉ để giải trí. */
@@ -369,6 +425,7 @@ io.on('connection', socket => {
   socket.on('disconnect', () => {
     const p = players.get(socket.id);
     if (!p) return;
+    endWork(p, false);                                    // đang công quả thì dừng việc, hết hẹn giờ
     if (leaveCabin(p)) broadcastCabin();                  // đang chờ trong cabin thì nhường chỗ
     players.delete(socket.id);
     io.emit('left', p.id);

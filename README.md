@@ -40,6 +40,14 @@ Mở nhiều tab để thử nhiều người chơi. Thêm `?dev=1` vào địa 
 | Lễ Phật | Bất cứ đâu; lời khấn đổi theo nơi đứng (chánh điện, đài Quán Thế Âm) |
 | Ngồi thiền | Bất cứ đâu; trong chánh điện tự ngồi lên bồ đoàn gần nhất (trong 1,3 m) và quay mặt về bàn thờ. Mỗi lần ngồi được +1 công đức, cách nhau tối thiểu 30 giây. Người chơi khác thấy bạn đang ngồi |
 
+**Công quả** (mỗi lần làm trọn được +10 công đức): mỗi việc kéo dài 5 đến 10 giây do server chọn ngẫu nhiên, bước đi giữa chừng hoặc bấm Dừng thì không được công đức.
+
+| Việc | Ở đâu |
+| --- | --- |
+| Quét lá | Sân dưới, gần gốc bồ đề; nhân vật cầm chổi tre, lá quanh đầu chổi bị gạt về đống lá |
+| Lặt rau | Nhà Trù, ngồi chiếu bên rổ rau (4 chỗ, mỗi chỗ một người) |
+| Nấu cơm | Nhà Trù, đứng khuấy nồi cơm hoặc nồi canh cạnh Phật tử đang nấu (2 chỗ) |
+
 Thời tiết là chung cho cả chùa: nắng, bình minh, hoàng hôn, âm u, mưa, giông bão, sương mù, đêm trăng.
 Ai cũng có thể "cầu" đổi (cách nhau tối thiểu 15 giây), server cũng tự đổi sau mỗi 5–10 phút.
 

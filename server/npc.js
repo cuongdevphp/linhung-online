@@ -59,8 +59,8 @@ const LAY_WALKERS = [
 
 /* ---- Phật tử làm công quả trong nhà bếp (nhà trù). Toạ độ và hướng nhìn theo hệ cục bộ của nhà (L.KITCHEN), khớp với public/js/kitchen.js ---- */
 const KITCHEN_WORKERS = [
-  { name: 'Bác Năm', robe: 1, x: -7.5, z: -0.95, ry: Math.PI, act: 'stir' },              // khuấy nồi cơm
-  { name: 'Dì Tư', robe: 4, x: -3.5, z: -0.95, ry: Math.PI, act: 'stir' },                // khuấy nồi canh
+  { name: 'Bác Năm', robe: 1, x: -8.1, z: -0.95, ry: Math.PI, act: 'stir', side: -0.4 },  // khuấy nồi cơm, đứng bên trái để chừa chỗ bên phải cho người chơi (WORK_SEATS)
+  { name: 'Dì Tư', robe: 4, x: -4.1, z: -0.95, ry: Math.PI, act: 'stir', side: -0.4 },    // khuấy nồi canh
   { name: 'Chú Ba', robe: 2, x: 0.5, z: -0.9, ry: Math.PI, act: 'fan', sit: true },       // ngồi quạt lửa bên xửng hấp
   { name: 'Cô Sáu', robe: 5, x: 4.6, z: -0.65, ry: Math.PI, act: 'chop' },                // thái rau
   { name: 'Anh Tám', robe: 3, x: 6.4, z: -0.65, ry: Math.PI, act: 'chop' },
@@ -150,6 +150,7 @@ export function startNpcs(players, io, merit) {
     const [wx, wz] = L.kitchenToWorld(k.x, k.z);                 // nhà bếp xoay -90°: đổi toạ độ cục bộ sang thế giới
     const p = add(k.name, ROBE(k.robe), wx, wz, wrap(k.ry + L.KITCHEN.rot), !!k.sit);
     p.act = k.act;
+    if (k.side) p.side = k.side;
   }
 
   for (const d of DINERS) {

@@ -97,6 +97,9 @@ body.photo #hud,body.photo .vignette{opacity:0}
 .cbtn.stop:not(:disabled){background:rgba(190,60,40,.35)}
 .cbtn.go{border:0;color:#3a1d04;background:linear-gradient(180deg,#ffe6aa,#f2b957 60%,#d98f2a);box-shadow:0 10px 30px rgba(240,170,70,.45),inset 0 1px 0 #fff6}
 .cbtn:disabled{opacity:.4;cursor:default}
+.wprog{display:flex;flex-direction:column;gap:6px;align-items:stretch;min-width:210px;border-radius:18px}
+.wprog i{display:block;height:6px;border-radius:99px;background:rgba(255,255,255,.14);overflow:hidden}
+.wprog b{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,#f2c46d,#8fe3c8);transition:width .25s linear}
 .cinfo{padding:9px 16px;border-radius:999px;background:rgba(9,30,38,.8);border:1px solid var(--line);font-size:13px;color:#ffe6ae;white-space:nowrap}
 
 .actions{display:none;gap:6px;padding:9px;border-radius:22px;
@@ -149,7 +152,8 @@ body.photo #hud,body.photo .vignette{opacity:0}
   .place{top:12px;left:12px;padding:8px 14px 8px 8px}.place-icon{width:34px;height:34px;font-size:18px}.zone{font-size:16px}.zone-sub{display:none}
   .top-right{top:12px;right:12px;flex-direction:column;align-items:flex-end;gap:6px}
   .stat{padding:7px 12px;font-size:12px}.icon-btn{width:36px;height:36px}
-  .wmenu{right:110%;top:0}
+  .top-right{z-index:3}                                   /* menu thời tiết nổi lên trên ô chat */
+  .wmenu{right:110%;top:0;max-height:calc(100vh - 24px);overflow-y:auto;background:rgba(9,26,32,.97)}
   .dock{left:auto;right:12px;bottom:16px;transform:none;align-items:flex-end}
   .cbar.show{flex-direction:column;align-items:flex-end;gap:6px}
   .cbtn{padding:10px 16px;font-size:13px}

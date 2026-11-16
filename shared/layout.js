@@ -33,6 +33,34 @@ export function kitchenToWorld(lx, lz) {
   return [KITCHEN.x + lx * c + lz * s, KITCHEN.z - lx * s + lz * c];
 }
 
+/* Công quả: người chơi làm một việc kéo dài 5 đến 10 giây (server chọn ngẫu nhiên) thì được WORK_MERIT công đức.
+ *   sweep: quét lá bồ đề ở sân dưới, đứng đâu trong vùng SWEEP_SPOT cũng được, quay mặt về đống lá (PILE)
+ *   pick : ngồi lặt rau bên rổ rau trong nhà bếp
+ *   cook : đứng khuấy nồi cơm / nồi canh trong nhà bếp, cạnh Phật tử đang nấu
+ * Chỗ làm ở nhà bếp tính theo toạ độ cục bộ của nhà (xem kitchen.js); `side` là độ lệch ngang của miệng nồi so với thân người (m),
+ * dùng để hai người đứng chung một nồi mà không đè lên nhau. Hoạt cảnh nằm ở public/js/work.js. */
+export const WORK_MERIT = 10;
+export const WORK_MS = [5000, 10000];
+export const WORK_KINDS = {
+  sweep: { act: 'sweep', text: 'quét lá', icon: '🧹', doing: 'Đang quét lá sân chùa' },
+  pick: { act: 'pick', text: 'lặt rau', icon: '🥬', doing: 'Đang lặt rau cho nhà bếp' },
+  cook: { act: 'stir', text: 'nấu cơm', icon: '🍚', doing: 'Đang nấu cơm cho đại chúng' }
+};
+export const SWEEP_SPOT = { x: -23.5, z: 28, r: 5 };
+const TAU = Math.PI * 2;
+const kseat = (kind, lx, lz, ry, extra = {}) => {
+  const [x, z] = kitchenToWorld(lx, lz);
+  return { kind, x, z, ry: (((ry + KITCHEN.rot) % TAU) + TAU) % TAU, ...extra };
+};
+export const WORK_SEATS = [
+  kseat('cook', -6.9, -0.95, Math.PI, { side: 0.4 }),                  // bên phải nồi cơm (Bác Năm đứng bên trái)
+  kseat('cook', -2.9, -0.95, Math.PI, { side: 0.4 }),                  // bên phải nồi canh (Dì Tư đứng bên trái)
+  kseat('pick', -3, 0.5, 0, { sit: true }),                             // chiếu A: hai Phật tử ngồi hai đầu rổ, hai chỗ này ở hai bên kia
+  kseat('pick', -3, 2.4, Math.PI, { sit: true }),
+  kseat('pick', 0.8, 2.25, Math.PI / 2, { sit: true }),                 // chiếu B: Bác Bảy ngồi phía bắc rổ
+  kseat('pick', 2.8, 2.25, -Math.PI / 2, { sit: true })
+];
+
 /* Bồ đoàn trong chánh điện: 3 hàng x 5 chiếc, cao 0,24 m. Ngồi thiền gần đây sẽ tự ngồi lên bồ đoàn. */
 export const CUSHION_H = 0.24;
 export const CUSHIONS = [];
@@ -79,6 +107,8 @@ export const SPOTS = [
   { type: 'drum', x: DRUM.x, z: DRUM.z, r: 5, text: 'đánh trống' },
   { type: 'mo', x: MO_PLAYER.x, z: MO_PLAYER.z, r: 2.6, text: 'gõ mõ' },
   { type: 'lantern', x: LAKE_SPOT.x, z: LAKE_SPOT.z, r: 4.5, text: 'thả hoa đăng' },
+  { type: 'sweep', x: SWEEP_SPOT.x, z: SWEEP_SPOT.z, r: SWEEP_SPOT.r, text: WORK_KINDS.sweep.text },
+  ...WORK_SEATS.map(s => ({ type: s.kind, x: s.x, z: s.z, r: 1.2, text: WORK_KINDS[s.kind].text })),
   ...SUMMIT_SPOTS                                  // sân đỉnh Đường Mây (xem summit.js)
 ];
 
