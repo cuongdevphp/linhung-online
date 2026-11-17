@@ -3,7 +3,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { ROBES, BELL, DRUM, STATUE, POND, BODHI, MO_PLAYER, POD, WORK_KINDS, WORK_MERIT } from '/shared/layout.js';
+import { ROBES, BELL, DRUM, STATUE, POND, BODHI, MO_PLAYER, POD, UP, WORK_KINDS, WORK_MERIT, NAP_ROOM, inSpot } from '/shared/layout.js';
 import { buildTerrain, terrainHeight } from './terrain.js';
 import { stairQuery, stairProgress, PILGRIM, PLAZA_DISCS, LOWER_PAD, STAIR_ROUTE, SUMMIT } from '/shared/stairs.js';
 import { SUMMIT_ZONES } from '/shared/summit.js';
@@ -89,7 +89,7 @@ function createPlayer(p) {
   h.root.position.set(p.x, heightAt(p.x, p.z), p.z); h.root.rotation.y = p.ry;
   const label = makeLabel(p.name); label.position.y = h.height + 0.1; h.root.add(label);
   scene.add(h.root);
-  const o = Object.assign(h, { id: p.id, name: p.name, color: p.color, label, target: new THREE.Vector3(p.x, 0, p.z), targetRy: p.ry, moving: !!p.moving, sitting: !!p.sitting, walk: 0, bow: 0, bubble: null, bubbleT: 0 });
+  const o = Object.assign(h, { id: p.id, name: p.name, color: p.color, label, target: new THREE.Vector3(p.x, 0, p.z), targetRy: p.ry, moving: !!p.moving, sitting: !!p.sitting, lying: !!p.lying, lieT: p.lying ? 1 : 0, walk: 0, bow: 0, bubble: null, bubbleT: 0 });
   if (p.act) attachWork(o, p.act, p.side);               // Phật tử làm công quả (NPC trong nhà bếp, hoặc người chơi đang quét lá, lặt rau, nấu cơm)
   players.set(p.id, o);
   if (p.ride) startRide(o, p.ride);                      // vào chùa giữa lúc ai đó đang ngồi cáp treo
@@ -271,6 +271,7 @@ socket.on('init', d => {
   else toast('🙏 Đã kết nối lại với chùa');
   meditating = false; updateSitUI();                      // vào lại thì đứng dậy (server cấp người chơi mới)
   myWork = null; setWorkUI(false);
+  myLying = false; updateRestUI();
   joined = true; joining = false;
   if (first) {
     $('#join').classList.add('leaving'); setTimeout(() => { preview?.stop(); $('#join').remove(); }, 900);
@@ -374,13 +375,39 @@ socket.on('workEnd', d => {
 });
 $('#workStop').addEventListener('click', cancelWork);
 
+/* ---- phòng nghỉ trưa: nằm chiếu (server xếp chỗ), bước đi thì tự đứng dậy ---- */
+let myLying = false;
+function updateRestUI() {
+  const b = document.querySelector('.act[data-act="rest"]');
+  b.classList.toggle('on', myLying);
+  b.querySelector('.lbl').textContent = myLying ? 'Đứng dậy' : 'Nằm nghỉ';
+}
+function setLying(on) {
+  if (!joined || !me || on === myLying) return;
+  if (on) { cancelWork(); setSitting(false); stopAuto(); }
+  socket.emit('rest', on);
+  if (!on) { myLying = false; me.lying = false; updateRestUI(); }      // đứng dậy ngay, không chờ server; nằm xuống thì chờ server xếp chiếu
+}
+socket.on('rest', d => {
+  const o = players.get(d.id); if (!o || o.ride) return;
+  o.lying = !!d.on;
+  if (d.on) {
+    o.sitting = false; o.moving = false;
+    o.root.position.x = d.x; o.root.position.z = d.z; o.root.rotation.y = d.ry; o.target.set(d.x, 0, d.z); o.targetRy = d.ry;
+  }
+  if (o !== me) return;
+  const was = myLying;
+  myLying = !!d.on; updateRestUI();
+  if (d.on) { sfx.chime(0.25); if (!was) toast('😴 Nằm xuống chiếu nghỉ trưa · bước đi hoặc bấm <b>Đứng dậy</b> khi muốn dậy'); }
+});
+
 /* ====================== ĐIỀU KHIỂN ====================== */
 const keys = {};
 let camYaw = 0, camPitch = 0.3, camDist = 9.5;
 let viewTilt = 0;            // ngước nhìn lên (rad): kéo chuột lên quá giới hạn để xem đầu tượng Quán Thế Âm
 let nearSpot = null;
 let camSnap = false;
-let hintedLookUp = false, hintedSit = false, hintedHall = false, hintedSummit = false;
+let hintedLookUp = false, hintedSit = false, hintedHall = false, hintedSummit = false, hintedNap = false;
 let meditating = false;      // mình đang ngồi thiền
 let eyeH = 1.5;              // độ cao điểm nhìn của camera so với chân nhân vật (thấp xuống khi ngồi)
 
@@ -596,10 +623,12 @@ socket.on('oracle', d => W.anim.oracle?.(d.kind));
 function doAction(type) {
   if (!joined || me?.ride) return;
   if (!WORK_KINDS[type]) cancelWork();                   // làm việc khác thì thôi công quả
+  if (type !== 'rest' && myLying) setLying(false);       // đang nằm nghỉ mà làm việc khác thì đứng dậy trước
   if (type === 'meditate') return setSitting(!meditating);
   if (type === 'view' || type === 'photo') return nearSpot?.type === type ? (type === 'view' ? doView() : doPhoto()) : undefined;
   if (!socket.connected) return toast('Mất kết nối, đang thử lại…');
   if (type !== 'bow' && (!nearSpot || nearSpot.type !== type)) return toast('Hãy lại gần để ' + esc(W.spots.find(s => s.type === type).text));
+  if (type === 'rest') return setLying(!myLying);       // phòng nghỉ trưa: nằm xuống chiếu trống gần nhất, hoặc đứng dậy
   if (WORK_KINDS[type]) {                                // quét lá, lặt rau, nấu cơm: server chọn chỗ và hẹn giờ
     if (myWork) return;
     setSitting(false); stopAuto();
@@ -613,7 +642,7 @@ function doAction(type) {
 const SPOT_ICON = {
   incense: '🪔', bell: '🔔', drum: '🥁', mo: '🪵', lantern: '🏮', incenseTop: '🪔',
   fortune: '🔮', meditate: '🧘', view: '🌄', photo: '📸', cable: '🚡',
-  sweep: WORK_KINDS.sweep.icon, pick: WORK_KINDS.pick.icon, cook: WORK_KINDS.cook.icon
+  rest: '😴', sweep: WORK_KINDS.sweep.icon, pick: WORK_KINDS.pick.icon, cook: WORK_KINDS.cook.icon
 };
 
 /* Hàng nút thao tác (lễ Phật, ngồi thiền, thắp nhang…) thu gọn sau nút "Thao tác", bấm vào mới mở ra; làm xong thì tự thu lại. */
@@ -699,6 +728,7 @@ const ZONES = [
   { test: (x, z) => x < -41 && stairQuery(x, z, 1) !== null, name: 'Đường Mây · 1.080 bậc', sub: 'Đi chậm thôi, mỗi bước một câu niệm Phật' },
   { test: (x, z) => x > 24.5 && z < -65.3, name: 'Trai đường', sub: 'Ăn cơm trong chánh niệm, nhớ ơn người dâng cúng' },
   { test: (x, z) => Math.abs(x - 26.1) < 5.5 && Math.abs(z + 50) < 13, name: 'Nhà Trù', sub: 'Công quả là tu, một nồi cơm cũng là hành đạo' },
+  { test: (x, z) => inSpot({ rect: NAP_ROOM }, x, z), name: 'Phòng nghỉ trưa', sub: 'Nằm chiếu nghỉ một chút, giữ yên lặng cho người đang ngủ' },
   { test: (x, z) => z <= 0 && Math.abs(x) > 30, name: 'Hành lang', sub: 'Bước chậm, nghe gió qua mái ngói' },
   { test: (x, z) => z < -64, name: 'Nhà Tổ', sub: 'Chốn tĩnh tu của chư Tăng' },
   { test: (x, z) => z < -38, name: 'Sân sau', sub: 'Lùi lại sau chánh điện, nghe gió từ núi Sơn Trà' },
@@ -737,6 +767,7 @@ function update(dt, t) {
     const mag = manual ? inputMag : 1, moving = manual || !!autoDir;
     if (moving && meditating) setSitting(false);           // bấm phím đi là xả thiền
     if (moving && myWork) cancelWork();                    // bước đi là dừng công quả
+    if (moving && myLying) setLying(false);                // bước đi là đứng dậy khỏi chiếu
     if (moving) {
       let mx, mz;
       if (autoDir) { [mx, mz] = autoDir; }
@@ -770,11 +801,11 @@ function update(dt, t) {
       lastSend = t; wasMoving = moving;
     }
 
-    nearSpot = me.ride ? null : W.spots.find(s => Math.hypot(p.x - s.x, p.z - s.z) < s.r) || null;
+    nearSpot = me.ride ? null : W.spots.find(s => inSpot(s, p.x, p.z)) || null;
     const pr = $('#prompt');
     if (nearSpot && !myWork) {                               // đang công quả thì ẩn nút ngữ cảnh, đã có thanh tiến độ và nút Dừng
       // nút ngữ cảnh thay cho phím E: hiện biểu tượng + việc có thể làm tại chỗ đang đứng
-      let label = nearSpot.type === 'meditate' && meditating ? 'Đứng dậy' : nearSpot.text.charAt(0).toUpperCase() + nearSpot.text.slice(1);
+      let label = (nearSpot.type === 'meditate' && meditating) || (nearSpot.type === 'rest' && myLying) ? 'Đứng dậy' : nearSpot.text.charAt(0).toUpperCase() + nearSpot.text.slice(1);
       if (nearSpot.type === 'cable' && cabinInfo.riders.length) label = cabinInfo.riders.length >= 2 ? 'Cabin đã đủ 2 người' : 'Lên cabin cùng (đang chờ 1/2)';
       const html = `<span class="ico">${SPOT_ICON[nearSpot.type] || '✨'}</span><span>${esc(label)}</span>${isTouch ? '' : '<kbd>E</kbd>'}`;
       if (pr.dataset.k !== html) { pr.innerHTML = html; pr.dataset.k = html; }
@@ -815,6 +846,10 @@ function update(dt, t) {
         toast('🌄 Bạn đã lên tới <b>đỉnh Đường Mây</b> sau 1.080 bậc. Nam mô A Di Đà Phật.');
         setTimeout(() => toast('Muốn xuống nhanh? Ra <b>ga cáp treo</b> ở góc tây nam sân'), 3600);
       }
+      if (z.name === 'Phòng nghỉ trưa' && !hintedNap) {
+        hintedNap = true;
+        setTimeout(() => toast(isTouch ? 'Bấm <b>Thao tác → Nằm nghỉ</b> để nằm xuống một chiếu trống' : 'Bấm nút <b>😴 Nằm nghỉ</b> để nằm xuống một chiếu trống'), 900);
+      }
       if (z.name === 'Đại Hùng Bảo Điện' && !hintedHall) {
         hintedHall = true;
         setTimeout(() => toast(isTouch ? 'Bấm <b>Thao tác → Ngồi thiền</b> để ngồi thiền trên bồ đoàn' : 'Nhấn <b>T</b> để ngồi thiền trên bồ đoàn'), 1200);
@@ -836,15 +871,20 @@ function update(dt, t) {
     }
 
     // camera bám theo (hạ thấp điểm nhìn khi ngồi thiền)
-    eyeH += (((meditating || myWork?.sit) ? 1.05 : 1.5) - eyeH) * Math.min(1, dt * 5);
+    eyeH += (((myLying || me.lieT > 0.5) ? 0.55 : (meditating || myWork?.sit) ? 1.05 : 1.5) - eyeH) * Math.min(1, dt * 5);
     const ty = p.y + eyeH;
-    tmp.set(p.x + Math.sin(camYaw) * Math.cos(camPitch) * camDist, ty + Math.sin(camPitch) * camDist, p.z + Math.cos(camYaw) * Math.cos(camPitch) * camDist);
+    const lk = me.lieT || 0, fx = p.x - Math.sin(me.root.rotation.y) * 0.9 * lk, fz = p.z - Math.cos(me.root.rotation.y) * 0.9 * lk;   // nằm: nhìn vào giữa thân người
+    tmp.set(fx + Math.sin(camYaw) * Math.cos(camPitch) * camDist, ty + Math.sin(camPitch) * camDist, fz + Math.cos(camYaw) * Math.cos(camPitch) * camDist);
     const onMountain = tmp.x < -41 || tmp.z < -76;
     tmp.y = Math.max(tmp.y, Math.max(heightAt(tmp.x, tmp.z), onMountain ? terrainHeight(tmp.x, tmp.z) : -Infinity) + 0.6);   // không chui xuống sườn núi khi leo Đường Mây và trên đỉnh
     if (inHall) tmp.y = Math.min(tmp.y, POD + 8);
+    if (inSpot({ rect: NAP_ROOM }, p.x, p.z)) {                // trong phòng nghỉ trưa: giữ camera trong lòng phòng, dưới trần, không bị tường che
+      tmp.x = clamp(tmp.x, NAP_ROOM.x1 + 0.3, NAP_ROOM.x2 - 0.3); tmp.z = clamp(tmp.z, NAP_ROOM.z1 + 0.3, NAP_ROOM.z2 - 0.3);
+      tmp.y = Math.min(tmp.y, UP + 0.6 + 3.2);
+    }
     if (camSnap) { camera.position.copy(tmp); camSnap = false; }
     else camera.position.lerp(tmp, 1 - Math.exp(-dt * 7));
-    camera.lookAt(p.x, ty + Math.tan(viewTilt) * camDist * Math.cos(camPitch), p.z);
+    camera.lookAt(fx, ty + Math.tan(viewTilt) * camDist * Math.cos(camPitch), fz);
     focus.set(p.x, p.y, p.z);
   } else {
     // màn hình chờ: camera bay vòng từ phía biển nhìn vào chùa và tượng Quán Thế Âm
@@ -881,6 +921,16 @@ function update(dt, t) {
       o.neck.rotation.x = Math.sin((1 - o.bow) * Math.PI) * 0.25;
     } else { o.upper.rotation.x = lean; o.neck.rotation.x = o.sitting ? 0.1 : 0; }
     if (o.work) updateWork(o, t);                            // ghi đè tay, lưng, mắt bằng động tác công quả
+    /* nằm nghỉ: cả thân xoay quanh bàn chân, ngả ra sau nằm ngửa trên chiếu, đầu hướng -z của nhân vật, tay chắp trước ngực, mắt nhắm */
+    const lk = o.lieT = (o.lieT ?? 0) + ((o.lying ? 1 : 0) - (o.lieT ?? 0)) * Math.min(1, dt * 5);
+    if (lk > 0.003 || o.lieOn) {
+      const done = !o.lying && lk <= 0.003;
+      o.body.rotation.x = done ? 0 : -Math.PI / 2 * lk;
+      if (!done) o.body.position.y += 0.2 * lk;
+      o.label.position.y = done ? o.height + 0.1 : o.height + 0.1 + (0.85 - o.height - 0.1) * lk;
+      o.closedEyes = o.lying;
+      o.lieOn = !done;
+    }
     o.idle(dt, t);
     if (o.bubble) {
       o.bubbleT -= dt; o.bubble.material.opacity = Math.min(1, o.bubbleT);
@@ -975,7 +1025,7 @@ if (DEV) {
     },
     weather(k) { weather.set(k, true); setWeatherUI(); },
     terrainHeight, heightAt, blocked, W,
-    state: () => ({ joined, sitting: meditating, work: myWork?.kind ?? null, merit: $('#merit')?.textContent, pos: me && me.root.position.toArray(), zone: zoneName, players: players.size, calls: renderer.info.render.calls, tris: renderer.info.render.triangles, geos: renderer.info.memory.geometries, tex: renderer.info.memory.textures }),
+    state: () => ({ joined, sitting: meditating, work: myWork?.kind ?? null, lying: myLying, merit: $('#merit')?.textContent, pos: me && me.root.position.toArray(), zone: zoneName, players: players.size, calls: renderer.info.render.calls, tris: renderer.info.render.triangles, geos: renderer.info.memory.geometries, tex: renderer.info.memory.textures }),
     act(type) { doAction(type); },
     socketDrop() { socket.io.engine.close(); },          // giả lập đứt mạng: socket.io tự nối lại
     selfId: () => selfId,

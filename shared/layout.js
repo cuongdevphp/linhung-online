@@ -61,6 +61,20 @@ export const WORK_SEATS = [
   kseat('pick', 2.8, 2.25, -Math.PI / 2, { sit: true })
 ];
 
+/* Phòng nghỉ trưa của Phật tử: một gian của tả vu (dãy hành lang bên trái khi từ cổng đi vào), cửa mở ra hành lang phía sân.
+ * Lòng phòng rộng 4,05 m, sâu 12,8 m: 1,9 m ở đầu nam là chỗ để dép và cửa, phần còn lại trải 20 chiếu nằm đất (4 chiếu ngang x 5 hàng),
+ * đầu người nằm quay về phía bắc (-z). (ax, az) là chỗ đặt bàn chân người nằm. Dựng ở public/js/restroom.js, va chạm ở world.js. */
+export const NAP_ROOM = { x1: -37.65, x2: -33.6, z1: -21.4, z2: -8.6, door: { z1: -10.6, z2: -8.6 } };
+export const NAP_MATS = [];
+{
+  const cx = (NAP_ROOM.x1 + NAP_ROOM.x2) / 2;
+  for (let r = 0; r < 5; r++) for (let c = 0; c < 4; c++) {
+    const x = cx + (c - 1.5) * 0.92, z = -11.5 - r * 2.2;
+    NAP_MATS.push({ x, z, ax: x, az: z + 0.95, ry: 0 });
+  }
+}
+export const NAP_NPC_MATS = [1, 6, 9, 12, 17];       // chiếu có Phật tử ảo đang ngủ trưa sẵn
+
 /* Bồ đoàn trong chánh điện: 3 hàng x 5 chiếc, cao 0,24 m. Ngồi thiền gần đây sẽ tự ngồi lên bồ đoàn. */
 export const CUSHION_H = 0.24;
 export const CUSHIONS = [];
@@ -107,10 +121,16 @@ export const SPOTS = [
   { type: 'drum', x: DRUM.x, z: DRUM.z, r: 5, text: 'đánh trống' },
   { type: 'mo', x: MO_PLAYER.x, z: MO_PLAYER.z, r: 2.6, text: 'gõ mõ' },
   { type: 'lantern', x: LAKE_SPOT.x, z: LAKE_SPOT.z, r: 4.5, text: 'thả hoa đăng' },
+  { type: 'rest', x: (NAP_ROOM.x1 + NAP_ROOM.x2) / 2, z: (NAP_ROOM.z1 + NAP_ROOM.z2) / 2, r: 7, rect: NAP_ROOM, text: 'nằm nghỉ' },   // spot hình chữ nhật: đứng trong phòng mới hiện nút
   { type: 'sweep', x: SWEEP_SPOT.x, z: SWEEP_SPOT.z, r: SWEEP_SPOT.r, text: WORK_KINDS.sweep.text },
   ...WORK_SEATS.map(s => ({ type: s.kind, x: s.x, z: s.z, r: 1.2, text: WORK_KINDS[s.kind].text })),
   ...SUMMIT_SPOTS                                  // sân đỉnh Đường Mây (xem summit.js)
 ];
+
+/* Người đứng ở (x, z) có trong vùng của điểm tương tác s không (hình tròn bán kính r, hoặc hình chữ nhật s.rect). */
+export const inSpot = (s, x, z) => s.rect
+  ? x >= s.rect.x1 && x <= s.rect.x2 && z >= s.rect.z1 && z <= s.rect.z2
+  : Math.hypot(x - s.x, z - s.z) < s.r;
 
 export const ACTIONS = ['bow', 'incense', 'bell', 'drum', 'mo', 'lantern', 'incenseTop'];
 

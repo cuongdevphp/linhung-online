@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { UP, BURNER, BELL, DRUM, POND, BODHI, STATUE, SPOTS } from '/shared/layout.js';
+import { UP, BURNER, BELL, DRUM, POND, BODHI, STATUE, SPOTS, NAP_ROOM } from '/shared/layout.js';
 import { mesh, box, cyl, textPlate, setRoot, mat, rng, bake } from './util.js';
 import { M } from './materials.js';
 import { roof, column, balustrade, createLanternField } from './parts.js';
@@ -9,6 +9,7 @@ import { makeArhat } from './arhat.js';
 import { buildHall } from './hall.js';
 import { buildKitchen } from './kitchen.js';
 import { buildDining } from './dining.js';
+import { buildRestRoom } from './restroom.js';
 import { buildPilgrimStairs } from './pilgrim.js';
 import { buildSummit } from './summit.js';
 import { buildCable } from './cable.js';
@@ -276,18 +277,36 @@ export function buildWorld(scene) {
   for (const sx of [-1, 1]) {
     const ZC = -34, HL = 28;                         // hành lang dài 56 m, từ z = -62 đến z = -6 (chừa góc đông bắc cho nhà ăn)
     const g = new THREE.Group(); g.position.set(sx * 34.5, UP, ZC); stat.add(g);
+    const nap = sx < 0;                              // tả vu (bên trái từ cổng vào) có một gian mở cửa ra hành lang: phòng nghỉ trưa, dựng ở restroom.js
     box(7.5, 0.6, 2 * HL, M.STONE, 0, 0.3, 0, g);
     box(0.5, 5, 2 * HL - 1, M.WALL, sx * 3.4, 3.1, 0, g);
-    box(0.3, 4.4, 2 * HL - 1.5, M.WALL, -sx * 1.05, 2.9, 0, g);
+    if (nap) {                                       // tường phía sân chừa khoảng hở làm cửa (z thế giới -> cục bộ: trừ ZC)
+      const a = NAP_ROOM.door.z1 - ZC, b = NAP_ROOM.door.z2 - ZC, lo = -(HL - 0.75), hi = HL - 0.75;
+      box(0.3, 4.4, a - lo, M.WALL, -sx * 1.05, 2.9, (lo + a) / 2, g);
+      box(0.3, 4.4, hi - b, M.WALL, -sx * 1.05, 2.9, (b + hi) / 2, g);
+      box(0.3, 2.1, b - a, M.WALL, -sx * 1.05, 4.05, (a + b) / 2, g);          // lanh tô trên cửa
+    } else box(0.3, 4.4, 2 * HL - 1.5, M.WALL, -sx * 1.05, 2.9, 0, g);
     for (let i = 0; i < 11; i++) {
+      if (nap && i === 10) continue;                 // ô cửa sổ này nằm ngay chỗ cửa phòng nghỉ
       const z = (i - 5) * 4.5;
       const o = mesh(new THREE.PlaneGeometry(4, 3.4), M.LATTICE, -sx * 1.22, 2.6, z, g, false); o.rotation.y = -sx * Math.PI / 2;
     }
-    for (let i = 0; i < 13; i++) { const z = (i - 6) * 4.2; column(g, -sx * 3.2, 0.6, z, 4.4, 0.26); blockCircle(sx * 34.5 - sx * 3.2, ZC + z, 0.3); }
+    for (let i = 0; i < 13; i++) {
+      if (nap && i === 12) continue;                 // bỏ cột sát cửa phòng nghỉ cho lối vào rộng
+      const z = (i - 6) * 4.2; column(g, -sx * 3.2, 0.6, z, 4.4, 0.26); blockCircle(sx * 34.5 - sx * 3.2, ZC + z, 0.3);
+    }
     roofZ(g, { len: 2 * HL + 3, wid: 10, h: 2.6, y: 5.4, s: 0.7, ridge: 2 * HL - 2 });
     for (let i = 0; i < 7; i++) W.lanternAt(g, -sx * 3.2, 4.9, (i - 3) * 8.4 + 2.1, 0.6);
-    blockBox(sx > 0 ? 33.3 : -38.6, sx > 0 ? 38.6 : -33.3, ZC - HL, ZC + HL);
+    if (!nap) blockBox(33.3, 38.6, ZC - HL, ZC + HL);
+    else {                                           // cả gian là khối đặc, trừ lòng phòng nghỉ trưa: tường ngoài, tường phía sân (trừ cửa) và hai vách ngăn
+      const R_ = NAP_ROOM;
+      blockBox(-38.6, -33.3, ZC - HL, R_.z1);                          // phần phía bắc phòng
+      blockBox(-38.6, -33.3, R_.z2, ZC + HL);                          // phần phía nam phòng
+      blockBox(-38.6, R_.x1, R_.z1, R_.z2);                            // tường ngoài
+      blockBox(R_.x2, -33.3, R_.z1, R_.door.z1);                       // tường phía sân, phần kín
+    }
   }
+  buildRestRoom(stat, W);
 
   buildHall(stat, W);
   buildKitchen(stat, W);

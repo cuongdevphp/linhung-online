@@ -91,7 +91,7 @@ function bucket(rate, burst) {
   };
 }
 
-const pub = p => ({ id: p.id, name: p.name, color: p.color, gender: p.gender, x: p.x, z: p.z, ry: p.ry, moving: p.moving, sitting: p.sitting, act: p.act, side: p.side, monk: p.monk, ride: p.ride && !p.ride.waiting ? p.ride : undefined });
+const pub = p => ({ id: p.id, name: p.name, color: p.color, gender: p.gender, x: p.x, z: p.z, ry: p.ry, moving: p.moving, sitting: p.sitting, lying: p.lying != null, act: p.act, side: p.side, monk: p.monk, ride: p.ride && !p.ride.waiting ? p.ride : undefined });
 
 /* Ngày hiện tại theo giờ Việt Nam (UTC+7), dạng YYYY-MM-DD, làm hạt giống cho kết quả tử vi trong ngày. */
 const vnDay = () => new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10);
@@ -208,6 +208,34 @@ function startWork(p, kind) {
   return null;
 }
 
+/* ====================== NGHỈ TRƯA ====================== */
+/* Phòng nghỉ trưa ở tả vu có 20 chiếu nằm đất (NAP_MATS). Người chơi vào phòng bấm "Nằm nghỉ" thì được xếp vào chiếu trống gần nhất;
+ * bước đi, ngồi thiền hay công quả thì tự đứng dậy. p.lying là số thứ tự chiếu (null: không nằm). Phật tử ảo ngủ sẵn ở vài chiếu (npc.js). */
+function endRest(p) {
+  if (p.lying == null) return;
+  p.lying = null;
+  io.emit('rest', { id: p.id, on: false });
+}
+/* Trả về chuỗi báo lỗi nếu chưa nằm được, ngược lại cho nằm và trả null. */
+function startRest(p) {
+  const R = L.NAP_ROOM, m = 1.5;
+  if (p.x < R.x1 - m || p.x > R.x2 + m || p.z < R.z1 - m || p.z > R.z2 + m) return 'Hãy vào phòng nghỉ trưa ở hành lang bên trái';
+  const taken = new Set();
+  for (const q of players.values()) if (q.lying != null) taken.add(q.lying);
+  let best = -1, bd = Infinity;
+  L.NAP_MATS.forEach((mat, i) => {
+    if (taken.has(i)) return;
+    const d = Math.hypot(p.x - mat.x, p.z - mat.z);
+    if (d < bd) { bd = d; best = i; }
+  });
+  if (best < 0) return 'Phòng nghỉ trưa đã kín chiếu, bạn đợi một chút nhé';
+  if (p.work) endWork(p, false);
+  const mat = L.NAP_MATS[best];
+  p.lying = best; p.sitting = false; p.moving = false; p.x = mat.ax; p.z = mat.az; p.ry = mat.ry; p.lastMove = Date.now();
+  io.emit('rest', { id: p.id, on: true, mat: best, x: p.x, z: p.z, ry: p.ry });
+  return null;
+}
+
 /* ====================== SOCKET ====================== */
 io.on('connection', socket => {
   prune();
@@ -249,6 +277,7 @@ io.on('connection', socket => {
     const x = Number(d.x), z = Number(d.z), ry = Number(d.ry);
     if (!Number.isFinite(x) || !Number.isFinite(z) || !Number.isFinite(ry)) return;
     if (p.work) { if (!d.moving) return; endWork(p, false); }        // đang công quả: gói đứng yên đến muộn thì bỏ qua, bước đi thì dừng việc
+    if (p.lying != null) { if (!d.moving) return; endRest(p); }      // đang nằm nghỉ: bước đi thì đứng dậy
     const now = Date.now();
     const dt = Math.max(0.016, (now - p.lastMove) / 1000);
     p.lastMove = now;
@@ -269,6 +298,7 @@ io.on('connection', socket => {
     const p = players.get(socket.id);
     if (!p || p.ride || !allowSit()) return;
     if (p.work) endWork(p, false);
+    if (p.lying != null) endRest(p);
     on = on === true;
     if (p.sitting === on) return;
     p.sitting = on;
@@ -322,7 +352,18 @@ io.on('connection', socket => {
     const p = players.get(socket.id);
     const kind = d && d.kind;
     if (!p || p.ride || p.work || typeof kind !== 'string' || !Object.hasOwn(L.WORK_KINDS, kind) || !allowWork()) return;
+    if (p.lying != null) endRest(p);
     const err = startWork(p, kind);
+    if (err) socket.emit('notice', err);
+  });
+  /* Nằm nghỉ ở phòng nghỉ trưa (true), hoặc đứng dậy (false). */
+  const allowRest = bucket(1, 4);
+  socket.on('rest', on => {
+    const p = players.get(socket.id);
+    if (!p || p.ride || !allowRest()) return;
+    if (on !== true) return endRest(p);
+    if (p.lying != null) return;
+    const err = startRest(p);
     if (err) socket.emit('notice', err);
   });
   socket.on('workStop', () => {

@@ -40,6 +40,8 @@ Mở nhiều tab để thử nhiều người chơi. Thêm `?dev=1` vào địa 
 | Lễ Phật | Bất cứ đâu; lời khấn đổi theo nơi đứng (chánh điện, đài Quán Thế Âm) |
 | Ngồi thiền | Bất cứ đâu; trong chánh điện tự ngồi lên bồ đoàn gần nhất (trong 1,3 m) và quay mặt về bàn thờ. Mỗi lần ngồi được +1 công đức, cách nhau tối thiểu 30 giây. Người chơi khác thấy bạn đang ngồi |
 
+**Phòng nghỉ trưa** (không tính công đức): gian đầu tả vu, hành lang bên trái khi từ cổng đi lên sân trên, có 20 chiếu cói nằm đất, 5 chiếu đã có Phật tử ảo ngủ sẵn. Vào phòng bấm 😴 **Nằm nghỉ**: server xếp bạn vào chiếu trống gần nhất, bước đi hoặc bấm **Đứng dậy** để dậy. Hết chiếu thì phải chờ.
+
 **Công quả** (mỗi lần làm trọn được +10 công đức): mỗi việc kéo dài 5 đến 10 giây do server chọn ngẫu nhiên, bước đi giữa chừng hoặc bấm Dừng thì không được công đức.
 
 | Việc | Ở đâu |

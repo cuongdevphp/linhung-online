@@ -71,6 +71,8 @@ const KITCHEN_WORKERS = [
 
 /* ---- Trai đường (nhà ăn): 5 thầy và 5 Phật tử ngồi dùng cơm, 1 người xới cơm. Toạ độ cục bộ theo L.DINING,
  * khớp với SEAT_X / SEAT_ROWS / RICE_TUB trong public/js/dining.js. Dãy z = -2.4 và 1.1 quay mặt về nam (ry 0), dãy -0.4 và 3.1 quay về bắc (ry π). ---- */
+const NAP_SLEEPERS = [['Bác Mười', 1], ['Cô Ba Liên', 4], ['Chú Tư Thiện', 2], ['Chị Thu Hà', 5], ['Ông Sáu Đức', 0]];   // [tên, màu áo], thứ tự theo L.NAP_NPC_MATS
+
 const DINERS = [
   { name: 'Thầy Minh Đức', monk: true, robe: 1, x: -3, z: -2.4 },
   { name: 'Thầy Huệ Quang', monk: true, robe: 3, x: -1, z: -2.4 },
@@ -152,6 +154,12 @@ export function startNpcs(players, io, merit) {
     p.act = k.act;
     if (k.side) p.side = k.side;
   }
+
+  NAP_SLEEPERS.forEach(([name, robe], i) => {                         // Phật tử ngủ trưa sẵn ở phòng nghỉ (tả vu), nằm trên các chiếu NAP_NPC_MATS
+    const idx = L.NAP_NPC_MATS[i], m = L.NAP_MATS[idx];
+    const p = add(name, ROBE(robe), m.ax, m.az, m.ry);
+    p.lying = idx;
+  });
 
   for (const d of DINERS) {
     const p = add(d.name, ROBE(d.robe), L.DINING.x + d.x, L.DINING.z + d.z, d.z === -0.4 || d.z === 3.1 ? Math.PI : 0, true);
