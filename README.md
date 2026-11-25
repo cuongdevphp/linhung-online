@@ -91,10 +91,20 @@ public/js/life.js      NPC, chim, cá, cờ, hoa đăng, nhang, đom đóm, khó
 public/js/human.js     Nhân vật (tay giải IK để chắp tay, cầm chổi, gõ mõ)
 public/js/weather.js   Bầu trời, mây, mưa, sương, sét, ánh sáng theo thời tiết
 public/js/audio.js     Âm thanh tổng hợp
+public/js/temple-music.js  Nhạc niệm Phật lặp trong chánh điện (đang tắt, xem phần băng thông)
 public/js/collision.js Độ cao nền và va chạm
 ```
 
+## Băng thông
+
+Nhạc chùa đang tắt (`URL = null` trong `public/js/temple-music.js`) để tiết kiệm băng thông. Một lượt vào chùa tải khoảng 0,6 MB từ host
+(font chữ tải từ Google), WebSocket khoảng 3 MB mỗi giờ cho mỗi người đang mở trang.
+Đoạn lặp 30 giây (480 KB) để ở `media-src/` trên máy, không đưa lên git. Bản nhạc gốc (~1 giờ, 65 MB) đã xoá khỏi máy,
+chỉ còn trong lịch sử git (commit `b3088c5`, file `public/audio/temple.mp3`).
+
 ## Triển khai lên Render (có sẵn `render.yaml`)
+
+Từ 23/4/2026 gói free của Render chỉ có 5 GB băng thông mỗi tháng; vượt mức mà chưa gắn thẻ thì Render khoá dịch vụ đến hết tháng.
 
 Cấu hình đã khai báo dịch vụ **`linhungtu-online`** (gói free, vùng Singapore, health check `/healthz`),
 nên địa chỉ sẽ là **https://linhungtu-online.onrender.com** nếu tên còn trống (tên bị lấy thì Render thêm hậu tố ngẫu nhiên).

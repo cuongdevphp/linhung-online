@@ -1,3 +1,5 @@
 node_modules/
 data/
 *.log
+# nhạc chùa: đoạn lặp 30 giây, chỉ giữ ở máy, không đưa lên git và không phục vụ cho người chơi (đang tắt để tiết kiệm băng thông).
+media-src/
